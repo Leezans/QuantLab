@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 
+from cLab.pipelines.aggtrades_pipeline import build_minute_factors_from_aggtrades_jsonl
 from cLab.pipelines.get_data import (
     download_aggtrades_day_and_store,
     download_ticker_price_and_store,
@@ -25,6 +26,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_agg.add_argument("--date", required=True, help="YYYY-MM-DD (UTC)")
     p_agg.add_argument("--max-records", type=int, default=5000, help="Safety cap")
 
+    p_factors = sub.add_parser("build-factors-1m", help="Build 1m factors from aggTrades JSONL and store parquet")
+    p_factors.add_argument("--symbol", required=True, help="Symbol like BTCUSDT")
+    p_factors.add_argument("--date", required=True, help="YYYY-MM-DD (UTC)")
+
     return p
 
 
@@ -46,6 +51,13 @@ def main(argv: list[str] | None = None) -> int:
         out = download_aggtrades_day_and_store(args.symbol, date=args.date, max_records=args.max_records)
         print(f"out={out['out']}")
         print(f"symbol={out['symbol']} date={out['date']} n={out['n']}")
+        return 0
+
+    if args.cmd == "build-factors-1m":
+        r = build_minute_factors_from_aggtrades_jsonl(symbol=args.symbol, date=args.date)
+        print(f"in={r.in_path}")
+        print(f"out={r.out_path}")
+        print(f"n_rows={r.n_rows}")
         return 0
 
     raise AssertionError("unreachable")
