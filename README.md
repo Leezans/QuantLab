@@ -1,2 +1,7 @@
 # QuantLab
 QuantLab is an open-source quantitative system designed for real-time data ingestion, feature computation, strategy research, and automated order execution. It aims to provide a modular, extensible framework for researchers and developers to collaboratively build production-ready quant workflows.
+希望可以推动个人量化的崛起，让量化不再是金融机构的优势。
+目前存在的问题是个人缺乏金融量化的基础设施，如数据的获取、存储、显示等等，个人搭建基础设施需要耗费大量的精力以及时间，这给个人量化造成的阻力十分显著。
+QuantLab将会提供金融数据的基础设施搭建，为大家直接提供可定制化、鲁棒性强的个人量化系统，至于算法以及策略，本项目暂不做任何展开。
+QuantLab会先从加密货币开始建立整个量化系统，加密货币的优势这里不做展开，简而言之是最适合量化的金融资产。后续也会展开到中国的股票、期货并公布相关逐笔数据的获取接口。
+项目正在创建并推进中，一切敬请期待。
