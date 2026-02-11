@@ -1,41 +1,26 @@
-import os 
+from __future__ import annotations
 
-
-
-
-
-class PathLayout:
-    def __init__(self, base_path: str):
-        self.base_path = base_path
-
-    def get_file_path(self, filename: str) -> str:
-        return os.path.join(self.base_path, filename)    
-
-
+import json
+from pathlib import Path
+from typing import Any
 
 
 class FileStore:
-    def __init__(self, file_path: str):
-        self.file_path = file_path
+    """A tiny file store for JSON-serializable objects."""
 
-    def save(self, data: str):
-        with open(self.file_path, 'w') as f:
-            f.write(data)
+    def __init__(self, file_path: str | Path):
+        self.file_path = Path(file_path)
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def load(self) -> str:
-        if not os.path.exists(self.file_path):
-            return ""
-        with open(self.file_path, 'r') as f:
-            return f.read()
+    def save_json(self, obj: Any) -> None:
+        tmp = self.file_path.with_suffix(self.file_path.suffix + ".tmp")
+        tmp.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self.file_path)
 
+    def load_json(self) -> Any:
+        if not self.file_path.exists():
+            return None
+        return json.loads(self.file_path.read_text(encoding="utf-8"))
 
-
-
-
-
-
-if __name__ == "__main__":
-    file_store = FileStore("data.txt")
-    file_store.save("Hello, World!")
-    print(file_store.load())
-    pass
+    def exists(self) -> bool:
+        return self.file_path.exists()
