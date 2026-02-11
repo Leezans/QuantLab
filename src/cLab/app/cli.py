@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import argparse
 
-from cLab.pipelines.get_data import download_ticker_price_and_store, get_latest_price
+from cLab.pipelines.get_data import (
+    download_aggtrades_day_and_store,
+    download_ticker_price_and_store,
+    get_latest_price,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -15,6 +19,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_fetch = sub.add_parser("fetch-price", help="Fetch price and store to file database")
     p_fetch.add_argument("--symbol", required=True, help="Symbol like BTCUSDT")
     p_fetch.add_argument("--date", default=None, help="YYYY-MM-DD (UTC). Default: today")
+
+    p_agg = sub.add_parser("fetch-aggtrades", help="Download aggTrades for a day and store to file database")
+    p_agg.add_argument("--symbol", required=True, help="Symbol like BTCUSDT")
+    p_agg.add_argument("--date", required=True, help="YYYY-MM-DD (UTC)")
+    p_agg.add_argument("--max-records", type=int, default=5000, help="Safety cap")
 
     return p
 
@@ -31,6 +40,12 @@ def main(argv: list[str] | None = None) -> int:
         out = download_ticker_price_and_store(args.symbol, date=args.date)
         print(f"out={out['out']}")
         print(f"symbol={out['symbol']} date={out['date']} price={out['price']}")
+        return 0
+
+    if args.cmd == "fetch-aggtrades":
+        out = download_aggtrades_day_and_store(args.symbol, date=args.date, max_records=args.max_records)
+        print(f"out={out['out']}")
+        print(f"symbol={out['symbol']} date={out['date']} n={out['n']}")
         return 0
 
     raise AssertionError("unreachable")
