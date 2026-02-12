@@ -43,16 +43,6 @@ class BinancePublicClient:
         from_id: int | None = None,
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
-        """Fetch aggregate trades.
-
-        Binance endpoint: GET /api/v3/aggTrades
-
-        Args:
-            start_time_ms/end_time_ms: epoch ms window.
-            from_id: aggTradeId to start from.
-            limit: max 1000.
-        """
-
         params: dict[str, Any] = {"symbol": symbol, "limit": int(min(1000, max(1, limit)))}
         if start_time_ms is not None:
             params["startTime"] = int(start_time_ms)
