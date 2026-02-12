@@ -26,6 +26,12 @@ dev = [
     "mypy>=0.950",
 ]
 
+viz = [
+    "streamlit>=1.31",
+    "plotly>=5.18",
+    "jupyterlab>=4.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
