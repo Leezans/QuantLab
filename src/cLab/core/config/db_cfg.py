@@ -4,8 +4,14 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-# Default path from user requirement (Windows drive). Override via env when needed.
-CRYPTOSDATABASEPATH = os.getenv("CRYPTOSDATABASEPATH", "G:/database/crypto/")
+# Cross-platform default root for crypto file database.
+# User can override via env: CRYPTOSDATABASEPATH or CLAB_FILE_DB_ROOT.
+if os.name == "nt":
+    _default_root = "G:/database/crypto/"
+else:
+    _default_root = "./database/crypto"
+
+CRYPTOSDATABASEPATH = os.getenv("CRYPTOSDATABASEPATH", _default_root)
 
 
 class FileDatabase:

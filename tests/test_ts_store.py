@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 
-from cLab.infra.stores.tsDB import SQLiteTimeSeriesStore
+from cLab.infra.storage.tsDB import SQLiteTimeSeriesStore
 
 
 def test_sqlite_ts_store_roundtrip(tmp_path) -> None:
