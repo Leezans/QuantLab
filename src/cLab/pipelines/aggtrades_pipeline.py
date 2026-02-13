@@ -10,7 +10,8 @@ import pandas as pd
 from cLab.core.config.db_cfg import DatabaseConfig
 from cLab.infra.storage.lab_layout import LabLayout
 from cLab.infra.storage.manifest import Manifest, now_ts, write_manifest
-from cLab.infra.stores.parquet_store import ParquetStore
+from cLab.core import datasets
+from cLab.infra.storage.parquet_store import ParquetStore
 from cLab.model.factor.aggtrades_1m import aggtrades_to_minute_factors
 
 
@@ -46,8 +47,8 @@ def build_minute_factors_from_aggtrades_jsonl(
 
     layout = LabLayout(root)
 
-    in_path = layout.file_path("aggtrades_raw", symbol, date, "part-0000.jsonl")
-    out_path = layout.file_path("trade_features_1m", symbol, date, "part-0000.parquet")
+    in_path = layout.file_path(datasets.AGGTRADES_RAW, symbol, date, "part-0000.jsonl")
+    out_path = layout.file_path(datasets.TRADE_FEATURES_1M, symbol, date, "part-0000.parquet")
 
     df = load_jsonl(in_path)
     if df.empty:
@@ -61,9 +62,9 @@ def build_minute_factors_from_aggtrades_jsonl(
     ParquetStore(out_path).write(factors)
 
     write_manifest(
-        layout.manifest_path("trade_features_1m", symbol, date),
+        layout.manifest_path(datasets.TRADE_FEATURES_1M, symbol, date),
         Manifest(
-            dataset="trade_features_1m",
+            dataset=datasets.TRADE_FEATURES_1M,
             symbol=symbol,
             date=date,
             created_at=now_ts(),

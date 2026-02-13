@@ -18,11 +18,11 @@ class CryptoCLabService:
 
     def list_symbols(self) -> list[str]:
         # Prefer bars if available, else factors.
-        syms = clab_api.list_symbols(dataset="bars_1m")
+        syms = clab_api.list_symbols()
         if syms:
             return syms
-        syms = clab_api.list_symbols(dataset="trade_features_1m")
-        return syms
+        # fallback: factors only
+        return clab_api.list_symbols(dataset="trade_features_1m")
 
     def load_timeseries(self, symbol: str, start: str, end: str, freq: str) -> pd.DataFrame:
         # Minimal explorer: load bars_1m partitions by date.

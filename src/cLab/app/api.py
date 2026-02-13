@@ -14,7 +14,8 @@ import pandas as pd
 
 from cLab.core.config.db_cfg import DatabaseConfig
 from cLab.infra.storage.lab_layout import LabLayout
-from cLab.infra.stores.parquet_store import ParquetStore
+from cLab.core import datasets
+from cLab.infra.storage.parquet_store import ParquetStore
 from cLab.model.factor.factor_eval import eval_factor
 from cLab.pipelines.aggtrades_pipeline import BuildMinuteFactorsResult, build_minute_factors_from_aggtrades_jsonl
 from cLab.pipelines.bars_pipeline import BuildBarsResult, build_bars_1m_from_aggtrades_jsonl
@@ -37,7 +38,7 @@ def build_bars_1m(*, symbol: str, date: str) -> BuildBarsResult:
     return build_bars_1m_from_aggtrades_jsonl(symbol=symbol, date=date)
 
 
-def list_symbols(*, dataset: str = "bars_1m") -> list[str]:
+def list_symbols(*, dataset: str = datasets.BARS_1M) -> list[str]:
     cfg = DatabaseConfig.from_env()
     root = Path(cfg.file_db_root) / dataset
     if not root.exists():
@@ -54,8 +55,8 @@ def load_parquet(*, dataset: str, symbol: str, date: str) -> pd.DataFrame:
 
 
 def factor_eval_1m(*, symbol: str, date: str, factor_col: str, horizon: int = 60) -> dict:
-    bars = load_parquet(dataset="bars_1m", symbol=symbol, date=date)
-    feats = load_parquet(dataset="trade_features_1m", symbol=symbol, date=date)
+    bars = load_parquet(dataset=datasets.BARS_1M, symbol=symbol, date=date)
+    feats = load_parquet(dataset=datasets.TRADE_FEATURES_1M, symbol=symbol, date=date)
 
     if bars.empty:
         raise ValueError("bars_1m is empty; build bars first")

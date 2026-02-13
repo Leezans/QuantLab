@@ -9,6 +9,7 @@ import pandas as pd
 
 from cLab.core.config.db_cfg import DatabaseConfig
 from cLab.infra.dataSource.binance_source import BinancePublicClient
+from cLab.core import datasets
 from cLab.infra.storage.lab_layout import LabLayout
 from cLab.infra.storage.manifest import Manifest, now_ts, write_manifest
 
@@ -42,7 +43,7 @@ def download_ticker_price_and_store(symbol: str, *, date: str | None = None) -> 
     date = date or datetime.now(tz=timezone.utc).date().isoformat()
     r = get_latest_price(symbol)
 
-    p = layout.file_path("ticker_price", symbol, date, "price.json")
+    p = layout.file_path(datasets.TICKER_PRICE, symbol, date, "price.json")
     p.parent.mkdir(parents=True, exist_ok=True)
 
     tmp = p.with_suffix(p.suffix + ".tmp")
@@ -50,8 +51,8 @@ def download_ticker_price_and_store(symbol: str, *, date: str | None = None) -> 
     tmp.replace(p)
 
     write_manifest(
-        layout.manifest_path("ticker_price", symbol, date),
-        Manifest(dataset="ticker_price", symbol=symbol, date=date, created_at=now_ts(), n_rows=1),
+        layout.manifest_path(datasets.TICKER_PRICE, symbol, date),
+        Manifest(dataset=datasets.TICKER_PRICE, symbol=symbol, date=date, created_at=now_ts(), n_rows=1),
     )
 
     return {"out": str(p), "symbol": r.symbol, "date": date, "price": r.price}
@@ -131,7 +132,7 @@ def download_aggtrades_day_and_store(
             break
 
     layout = LabLayout(cfg.file_db_root)
-    p = layout.file_path("aggtrades_raw", symbol, date, "part-0000.jsonl")
+    p = layout.file_path(datasets.AGGTRADES_RAW, symbol, date, "part-0000.jsonl")
     p.parent.mkdir(parents=True, exist_ok=True)
 
     # Write JSONL atomically
@@ -143,9 +144,9 @@ def download_aggtrades_day_and_store(
     tmp.replace(p)
 
     write_manifest(
-        layout.manifest_path("aggtrades_raw", symbol, date),
+        layout.manifest_path(datasets.AGGTRADES_RAW, symbol, date),
         Manifest(
-            dataset="aggtrades_raw",
+            dataset=datasets.AGGTRADES_RAW,
             symbol=symbol,
             date=date,
             created_at=now_ts(),
