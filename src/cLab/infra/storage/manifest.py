@@ -14,6 +14,7 @@ class Manifest:
     date: str
     created_at: float
     n_rows: int
+    schema_version: str = "v1"
     schema: dict[str, str] | None = None
     stats: dict[str, Any] | None = None
     source: dict[str, Any] | None = None
@@ -28,6 +29,7 @@ def write_manifest(path: str | Path, m: Manifest) -> None:
         "date": m.date,
         "created_at": float(m.created_at),
         "n_rows": int(m.n_rows),
+        "schema_version": m.schema_version,
         "schema": m.schema,
         "stats": m.stats,
         "source": m.source,
