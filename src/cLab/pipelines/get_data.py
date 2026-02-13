@@ -7,10 +7,10 @@ from typing import Any
 
 import pandas as pd
 
-from cLab.core.config.database import DatabaseConfig
-from cLab.infra.dataSource.binance import BinancePublicClient
-from cLab.infra.stores.fileDB import FileStore
-from cLab.infra.stores.pathlayout import PathLayout
+from cLab.core.config.db_cfg import DatabaseConfig
+from cLab.infra.dataSource.binance_source import BinancePublicClient
+from cLab.infra.storage.lab_layout import LabLayout
+from cLab.infra.storage.manifest import Manifest, now_ts, write_manifest
 
 
 @dataclass(frozen=True)
@@ -37,16 +37,22 @@ def download_ticker_price_and_store(symbol: str, *, date: str | None = None) -> 
     """
 
     cfg = DatabaseConfig.from_env()
-    root = cfg.file_db_root
+    layout = LabLayout(cfg.file_db_root)
 
     date = date or datetime.now(tz=timezone.utc).date().isoformat()
     r = get_latest_price(symbol)
 
-    layout = PathLayout(root)
     p = layout.file_path("ticker_price", symbol, date, "price.json")
+    p.parent.mkdir(parents=True, exist_ok=True)
 
-    store = FileStore(p)
-    store.save_json({"symbol": r.symbol, "date": date, "price": r.price})
+    tmp = p.with_suffix(p.suffix + ".tmp")
+    tmp.write_text(json.dumps({"symbol": r.symbol, "date": date, "price": r.price}, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(p)
+
+    write_manifest(
+        layout.manifest_path("ticker_price", symbol, date),
+        Manifest(dataset="ticker_price", symbol=symbol, date=date, created_at=now_ts(), n_rows=1),
+    )
 
     return {"out": str(p), "symbol": r.symbol, "date": date, "price": r.price}
 
@@ -124,8 +130,8 @@ def download_aggtrades_day_and_store(
         if max_ts is not None and max_ts > end_ms:
             break
 
-    layout = PathLayout(root)
-    p = layout.file_path("aggtrades", symbol, date, "part-0000.jsonl")
+    layout = LabLayout(cfg.file_db_root)
+    p = layout.file_path("aggtrades_raw", symbol, date, "part-0000.jsonl")
     p.parent.mkdir(parents=True, exist_ok=True)
 
     # Write JSONL atomically
@@ -135,5 +141,18 @@ def download_aggtrades_day_and_store(
             f.write(json.dumps(r, ensure_ascii=False))
             f.write("\n")
     tmp.replace(p)
+
+    write_manifest(
+        layout.manifest_path("aggtrades_raw", symbol, date),
+        Manifest(
+            dataset="aggtrades_raw",
+            symbol=symbol,
+            date=date,
+            created_at=now_ts(),
+            n_rows=int(len(out)),
+            stats={"max_records": int(max_records)},
+            source={"endpoint": "/api/v3/aggTrades"},
+        ),
+    )
 
     return {"out": str(p), "symbol": symbol, "date": date, "n": int(len(out))}

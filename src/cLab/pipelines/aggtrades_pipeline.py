@@ -7,9 +7,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from cLab.core.config.database import DatabaseConfig
+from cLab.core.config.db_cfg import DatabaseConfig
+from cLab.infra.storage.lab_layout import LabLayout
+from cLab.infra.storage.manifest import Manifest, now_ts, write_manifest
 from cLab.infra.stores.parquet_store import ParquetStore
-from cLab.infra.stores.pathlayout import PathLayout
 from cLab.model.factor.aggtrades_1m import aggtrades_to_minute_factors
 
 
@@ -43,9 +44,9 @@ def build_minute_factors_from_aggtrades_jsonl(
     cfg = DatabaseConfig.from_env()
     root = file_db_root or cfg.file_db_root
 
-    layout = PathLayout(root)
+    layout = LabLayout(root)
 
-    in_path = layout.file_path("aggtrades", symbol, date, "part-0000.jsonl")
+    in_path = layout.file_path("aggtrades_raw", symbol, date, "part-0000.jsonl")
     out_path = layout.file_path("trade_features_1m", symbol, date, "part-0000.parquet")
 
     df = load_jsonl(in_path)
@@ -59,8 +60,17 @@ def build_minute_factors_from_aggtrades_jsonl(
 
     ParquetStore(out_path).write(factors)
 
-    return BuildMinuteFactorsResult(
-        in_path=str(in_path),
-        out_path=str(out_path),
-        n_rows=int(len(factors)),
+    write_manifest(
+        layout.manifest_path("trade_features_1m", symbol, date),
+        Manifest(
+            dataset="trade_features_1m",
+            symbol=symbol,
+            date=date,
+            created_at=now_ts(),
+            n_rows=int(len(factors)),
+            schema={k: str(v) for k, v in factors.dtypes.items()},
+            source={"input": str(in_path)},
+        ),
     )
+
+    return BuildMinuteFactorsResult(in_path=str(in_path), out_path=str(out_path), n_rows=int(len(factors)))
