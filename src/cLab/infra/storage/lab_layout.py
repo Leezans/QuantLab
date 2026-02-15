@@ -34,3 +34,24 @@ class LabLayout:
 
     def manifest_path(self, dataset: str, symbol: str, date: str) -> Path:
         return self.file_path(dataset, symbol, date, "manifest.json")
+
+    # -----------------
+    # Discovery helpers
+    # -----------------
+    def list_datasets(self) -> list[str]:
+        root = Path(self.root)
+        if not root.exists():
+            return []
+        return sorted([p.name for p in root.iterdir() if p.is_dir()])
+
+    def list_symbols(self, dataset: str) -> list[str]:
+        p = self.dataset_dir(dataset)
+        if not p.exists():
+            return []
+        return sorted([x.name for x in p.iterdir() if x.is_dir()])
+
+    def list_dates(self, dataset: str, symbol: str) -> list[str]:
+        p = self.symbol_dir(dataset, symbol)
+        if not p.exists():
+            return []
+        return sorted([x.name for x in p.iterdir() if x.is_dir()])

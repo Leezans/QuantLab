@@ -9,12 +9,14 @@ We keep it thin: just orchestrate pipelines and return dicts.
 """
 
 from pathlib import Path
+import json
 
 import pandas as pd
 
 from cLab.core.config.db_cfg import DatabaseConfig
-from cLab.infra.storage.lab_layout import LabLayout
 from cLab.core import datasets
+from cLab.infra.storage.lab_layout import LabLayout
+from cLab.infra.storage.manifest import read_manifest
 from cLab.infra.storage.parquet_store import ParquetStore
 from cLab.model.factor.factor_eval import eval_factor
 from cLab.pipelines.aggtrades_pipeline import BuildMinuteFactorsResult, build_minute_factors_from_aggtrades_jsonl
@@ -38,13 +40,19 @@ def build_bars_1m(*, symbol: str, date: str) -> BuildBarsResult:
     return build_bars_1m_from_aggtrades_jsonl(symbol=symbol, date=date)
 
 
+def list_datasets() -> list[str]:
+    cfg = DatabaseConfig.from_env()
+    return LabLayout(cfg.file_db_root).list_datasets()
+
+
 def list_symbols(*, dataset: str = datasets.BARS_1M) -> list[str]:
     cfg = DatabaseConfig.from_env()
-    root = Path(cfg.file_db_root) / dataset
-    if not root.exists():
-        return []
-    out = [p.name for p in root.iterdir() if p.is_dir()]
-    return sorted(out)
+    return LabLayout(cfg.file_db_root).list_symbols(dataset)
+
+
+def list_dates(*, dataset: str, symbol: str) -> list[str]:
+    cfg = DatabaseConfig.from_env()
+    return LabLayout(cfg.file_db_root).list_dates(dataset, symbol)
 
 
 def load_parquet(*, dataset: str, symbol: str, date: str) -> pd.DataFrame:
@@ -52,6 +60,46 @@ def load_parquet(*, dataset: str, symbol: str, date: str) -> pd.DataFrame:
     layout = LabLayout(cfg.file_db_root)
     p = layout.file_path(dataset, symbol, date, "part-0000.parquet")
     return ParquetStore(p).read()
+
+
+def load_manifest(*, dataset: str, symbol: str, date: str) -> dict | None:
+    cfg = DatabaseConfig.from_env()
+    layout = LabLayout(cfg.file_db_root)
+    return read_manifest(layout.manifest_path(dataset, symbol, date))
+
+
+def load_preview(*, dataset: str, symbol: str, date: str, limit: int = 200) -> dict:
+    """Best-effort preview loader for UI.
+
+    Returns:
+      {"kind": "parquet"|"json"|"jsonl"|"missing", "data": ...}
+    """
+    cfg = DatabaseConfig.from_env()
+    layout = LabLayout(cfg.file_db_root)
+
+    pq_path = layout.file_path(dataset, symbol, date, "part-0000.parquet")
+    if pq_path.exists():
+        df = ParquetStore(pq_path).read().head(int(limit))
+        return {"kind": "parquet", "rows": df.to_dict(orient="records"), "columns": list(df.columns)}
+
+    json_path = layout.file_path(dataset, symbol, date, "price.json")
+    if json_path.exists():
+        return {"kind": "json", "data": json.loads(json_path.read_text(encoding="utf-8"))}
+
+    jsonl_path = layout.file_path(dataset, symbol, date, "part-0000.jsonl")
+    if jsonl_path.exists():
+        rows = []
+        with jsonl_path.open("r", encoding="utf-8") as f:
+            for i, line in enumerate(f):
+                if i >= int(limit):
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                rows.append(json.loads(line))
+        return {"kind": "jsonl", "rows": rows}
+
+    return {"kind": "missing"}
 
 
 def factor_eval_1m(*, symbol: str, date: str, factor_col: str, horizon: int = 60) -> dict:

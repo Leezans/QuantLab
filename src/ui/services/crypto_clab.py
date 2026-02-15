@@ -16,16 +16,17 @@ class CryptoCLabService:
     def lab_key(self) -> str:
         return self._lab_key
 
-    def list_symbols(self) -> list[str]:
-        # Prefer bars if available, else factors.
-        syms = clab_api.list_symbols()
-        if syms:
-            return syms
-        # fallback: factors only
-        return clab_api.list_symbols(dataset="trade_features_1m")
+    def list_datasets(self) -> list[str]:
+        return clab_api.list_datasets()
+
+    def list_symbols(self, dataset: str) -> list[str]:
+        return clab_api.list_symbols(dataset=dataset)
+
+    def list_dates(self, dataset: str, symbol: str) -> list[str]:
+        return clab_api.list_dates(dataset=dataset, symbol=symbol)
 
     def load_timeseries(self, symbol: str, start: str, end: str, freq: str) -> pd.DataFrame:
-        # Minimal explorer: load bars_1m partitions by date.
+        # Keep compatibility for the chart view: default to bars_1m range if present.
         start_d = date.fromisoformat(start)
         end_d = date.fromisoformat(end)
 
@@ -45,6 +46,12 @@ class CryptoCLabService:
             df = df.sort_values("minute", kind="mergesort")
             df = df.set_index("minute")
         return df
+
+    def load_manifest(self, dataset: str, symbol: str, date: str) -> dict | None:
+        return clab_api.load_manifest(dataset=dataset, symbol=symbol, date=date)
+
+    def load_preview(self, dataset: str, symbol: str, date: str, limit: int = 200) -> dict:
+        return clab_api.load_preview(dataset=dataset, symbol=symbol, date=date, limit=limit)
 
     def run_pipeline_build_features(self, symbol: str, *, date_str: str, max_records: int = 5000) -> dict[str, Any]:
         # End-to-end for a single day:

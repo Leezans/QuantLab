@@ -39,5 +39,12 @@ def write_manifest(path: str | Path, m: Manifest) -> None:
     tmp.replace(p)
 
 
+def read_manifest(path: str | Path) -> dict[str, Any] | None:
+    p = Path(path)
+    if not p.exists():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
 def now_ts() -> float:
     return time.time()
