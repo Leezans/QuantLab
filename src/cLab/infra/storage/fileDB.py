@@ -161,3 +161,20 @@ class FileDB:
 
     def write_text_atomic(self, spec: BinanceFileSpec, text: str, encoding: str = "utf-8") -> Path:
         return self.write_bytes_atomic(spec, text.encode(encoding))
+
+
+
+
+if __name__ == "__main__":
+    layout = BinancePathLayout(db_cfg.BINANCE_DIR, style=LayoutStyle.MIRROR)
+    filedb = FileDB(layout)
+
+    spec = BinanceFileSpec(
+        market=Market.SPOT,
+        frequency=Frequency.DAILY,
+        dataset=Dataset.TRADES,
+        symbol="BTCUSDT",
+        date="2023-01-01",
+    )
+    path = filedb.local_path(spec)
+    print(path)

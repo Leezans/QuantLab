@@ -124,3 +124,27 @@ class BinanceVisionClient:
             raise ValueError(f"Unexpected checksum format: {token}")
         return token.lower()
 
+
+
+if __name__ == "__main__":
+    from cLab.core.config.db_cfg import load_binance_keys, BINANCE_DIR
+    from cLab.infra.storage.fileDB import BinancePathLayout, FileDB, Market, Frequency
+
+    keys = load_binance_keys()
+    print(f"Loaded Binance API key: {keys.api_key}")
+
+    layout = BinancePathLayout(base_path=BINANCE_DIR)
+    filedb = FileDB(layout=layout)
+    client = BinanceVisionClient()
+
+    spec = BinanceFileSpec(
+        market=Market.SPOT,
+        frequency=Frequency.DAILY,
+        dataset=Dataset.TRADES,
+        symbol="BTCUSDT",
+        date="2023-01-02",
+        with_checksum=False,
+    )
+
+    result = client.download_to_filedb(filedb=filedb, data_spec=spec, fetch_checksum=True, verify=True)
+    print(f"Download result: {result}")

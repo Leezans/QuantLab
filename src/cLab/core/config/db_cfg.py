@@ -10,7 +10,9 @@ from pathlib import Path
 def _default_crypto_filedb_path() -> Path:
     if os.name == "nt":
         return Path("G:/database/crypto")
-    return Path.home() / "Documents" / "database" / "crypto"
+    elif os.name == "posix":
+        return Path.home() / "Documents" / "database" / "crypto"
+    raise RuntimeError(f"Unsupported OS: {os.name}")
 
 
 CRYPTOS_DATABASE_PATH: Path = Path(os.getenv("CRYPTOS_DATABASE_PATH", str(_default_crypto_filedb_path())))
@@ -21,6 +23,7 @@ BINANCE_API_KEY_PATH: Path = BINANCE_DIR / "api_key.json"
 @dataclass(frozen=True)
 class BinanceKeys:
     api_key: str 
+
 
 def load_binance_keys(path: Path = BINANCE_API_KEY_PATH) -> BinanceKeys:
     with path.open("r", encoding="utf-8") as f:
