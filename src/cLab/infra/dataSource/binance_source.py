@@ -90,6 +90,40 @@ class BinanceVisionClient:
             verified=verified,
         )
 
+    def download_and_convert(
+        self,
+        filedb: FileDB,
+        spec: BinanceFileSpec,
+        fetch_checksum: bool = True,
+        verify: bool = True,
+        compression: str = "snappy",
+    ) -> str:
+        spec.validate()
+
+        # 1. 如果 parquet 已存在 → 跳过
+        if filedb.parquet_exists(spec):
+            return str(filedb.parquet_path(spec))
+
+        # 2. 下载 zip
+        self.download_to_filedb(
+            filedb=filedb,
+            data_spec=spec,
+            fetch_checksum=fetch_checksum,
+            verify=verify,
+        )
+
+        # 3. 转 parquet
+        parquet_path = filedb.zip_to_parquet(
+            zip_spec=spec,
+            delete_zip=False,
+            compression=compression,
+        )
+
+        # 4. 删除 zip + checksum
+        filedb.delete_artifacts(spec)
+
+        return str(parquet_path)
+    
     def _http_get(self, url: str) -> bytes:
         r = self._session.get(url, timeout=self._timeout)
         r.raise_for_status()
@@ -127,24 +161,116 @@ class BinanceVisionClient:
 
 
 if __name__ == "__main__":
+    from pathlib import Path
+    import pandas as pd
+
     from cLab.core.config.db_cfg import load_binance_keys, BINANCE_DIR
-    from cLab.infra.storage.fileDB import BinancePathLayout, FileDB, Market, Frequency
+    from cLab.infra.storage.fileDB import (
+        BinancePathLayout,
+        FileDB,
+        Market,
+        Frequency,
+        LayoutStyle,
+    )
 
+    print("=== Smoke Test: Binance Download + Convert Pipeline ===")
+
+    # 1. Load config
     keys = load_binance_keys()
-    print(f"Loaded Binance API key: {keys.api_key}")
+    print(f"Loaded Binance API key length: {len(keys.api_key)}")
 
-    layout = BinancePathLayout(base_path=BINANCE_DIR)
+    layout = BinancePathLayout(
+        base_path=BINANCE_DIR,
+        style=LayoutStyle.MIRROR,
+    )
     filedb = FileDB(layout=layout)
     client = BinanceVisionClient()
 
+    # 2. Define test spec
     spec = BinanceFileSpec(
         market=Market.SPOT,
         frequency=Frequency.DAILY,
         dataset=Dataset.TRADES,
         symbol="BTCUSDT",
-        date="2023-01-02",
+        date="2023-01-01",
         with_checksum=False,
     )
 
-    result = client.download_to_filedb(filedb=filedb, data_spec=spec, fetch_checksum=True, verify=True)
-    print(f"Download result: {result}")
+    # 3. Run idempotent pipeline
+    parquet_path_str = client.download_and_convert(
+        filedb=filedb,
+        spec=spec,
+        fetch_checksum=True,
+        verify=True,
+    )
+
+    parquet_path = Path(parquet_path_str)
+    print(f"Final parquet path: {parquet_path}")
+
+    # 4. File existence check
+    if not parquet_path.exists():
+        raise RuntimeError("Parquet file not found after pipeline.")
+
+    # 5. Read parquet
+    df = pd.read_parquet(parquet_path)
+    print(f"Shape: {df.shape}")
+    print(f"Columns: {list(df.columns)}")
+
+    if df.empty:
+        raise RuntimeError("Parquet is empty.")
+
+    # 6. Basic schema validation
+    expected_cols = {
+        Dataset.TRADES: {
+            "trade_id",
+            "price",
+            "quantity",
+            "quote_quantity",
+            "timestamp",
+            "is_buyer_maker",
+            "is_best_match",
+        },
+        Dataset.AGGTRADES: {
+            "agg_trade_id",
+            "price",
+            "quantity",
+            "first_trade_id",
+            "last_trade_id",
+            "timestamp",
+            "is_buyer_maker",
+            "is_best_match",
+        },
+        Dataset.KLINES: {
+            "open_time",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "close_time",
+            "quote_asset_volume",
+            "number_of_trades",
+            "taker_buy_base_asset_volume",
+            "taker_buy_quote_asset_volume",
+            "ignore",
+        },
+    }[spec.dataset]
+
+    missing = expected_cols - set(df.columns)
+    if missing:
+        raise RuntimeError(f"Missing columns: {sorted(missing)}")
+
+    # 7. Basic value sanity checks
+    if "price" in df.columns:
+        if (df["price"] <= 0).any():
+            raise RuntimeError("Invalid price values detected.")
+
+    if "quantity" in df.columns:
+        if (df["quantity"] <= 0).any():
+            raise RuntimeError("Invalid quantity values detected.")
+
+    if "timestamp" in df.columns:
+        if df["timestamp"].min() <= 0:
+            raise RuntimeError("Invalid timestamp detected.")
+
+    print("=== Smoke Test Passed ===")

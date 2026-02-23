@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Optional, Literal
+import zipfile
+import pandas as pd
 
 from cLab.core.config import db_cfg
 
@@ -34,6 +36,42 @@ KlineInterval = Literal[
     "1d", "3d",
     "1w",
     "1M",
+]
+
+AGGTRADES_COLUMNS = [
+    "agg_trade_id",
+    "price",
+    "quantity",
+    "first_trade_id",
+    "last_trade_id",
+    "timestamp",
+    "is_buyer_maker",
+    "is_best_match",
+]
+
+TRADES_COLUMNS = [
+    "trade_id",
+    "price",
+    "quantity",
+    "quote_quantity",
+    "timestamp",
+    "is_buyer_maker",
+    "is_best_match",
+]
+
+KLINES_COLUMNS = [
+    "open_time",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "close_time",
+    "quote_asset_volume",
+    "number_of_trades",
+    "taker_buy_base_asset_volume",
+    "taker_buy_quote_asset_volume",
+    "ignore",
 ]
 
 
@@ -161,6 +199,131 @@ class FileDB:
 
     def write_text_atomic(self, spec: BinanceFileSpec, text: str, encoding: str = "utf-8") -> Path:
         return self.write_bytes_atomic(spec, text.encode(encoding))
+    
+    def zip_to_parquet(
+        self,
+        zip_spec: BinanceFileSpec,
+        parquet_path: Optional[Path] = None,
+        delete_zip: bool = False,
+        compression: str = "snappy",
+    ) -> Path:
+        zip_spec.validate()
+        if zip_spec.with_checksum:
+            raise ValueError("zip_spec.with_checksum must be False.")
+
+        zip_path = self.local_path(zip_spec)
+        if not zip_path.exists():
+            raise FileNotFoundError(str(zip_path))
+
+        if parquet_path is None:
+            parquet_path = self._parquet_path_for_spec(zip_spec)
+
+        parquet_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with zipfile.ZipFile(zip_path, "r") as z:
+            members = z.namelist()
+            if not members:
+                raise ValueError(f"Empty zip: {zip_path}")
+
+            csv_name = None
+            for name in members:
+                if name.lower().endswith(".csv"):
+                    csv_name = name
+                    break
+            if csv_name is None:
+                csv_name = members[0]
+
+            with z.open(csv_name) as f:
+                if zip_spec.dataset == Dataset.AGGTRADES:
+                    df = pd.read_csv(
+                        f,
+                        header=None,
+                        names=AGGTRADES_COLUMNS,
+                        dtype={
+                            "agg_trade_id": "int64",
+                            "price": "float64",
+                            "quantity": "float64",
+                            "first_trade_id": "int64",
+                            "last_trade_id": "int64",
+                            "timestamp": "int64",
+                            "is_buyer_maker": "bool",
+                            "is_best_match": "bool",
+                        },
+                    )
+                elif zip_spec.dataset == Dataset.TRADES:
+                    df = pd.read_csv(
+                        f,
+                        header=None,
+                        names=TRADES_COLUMNS,
+                    )
+                elif zip_spec.dataset == Dataset.KLINES:
+                    df = pd.read_csv(
+                        f,
+                        header=None,
+                        names=KLINES_COLUMNS,
+                        dtype={
+                            "open_time": "int64",
+                            "open": "float64",
+                            "high": "float64",
+                            "low": "float64",
+                            "close": "float64",
+                            "volume": "float64",
+                            "close_time": "int64",
+                            "quote_asset_volume": "float64",
+                            "number_of_trades": "int64",
+                            "taker_buy_base_asset_volume": "float64",
+                            "taker_buy_quote_asset_volume": "float64",
+                            "ignore": "float64",
+                        },
+                    )
+                else:
+                    raise ValueError(f"Unsupported dataset: {zip_spec.dataset}")
+
+        df.to_parquet(
+            parquet_path,
+            engine="pyarrow",
+            compression=compression,
+            index=False,
+        )
+
+        if delete_zip:
+            try:
+                zip_path.unlink()
+            except OSError:
+                pass
+
+        return parquet_path
+
+    def _parquet_path_for_spec(self, spec: BinanceFileSpec) -> Path:
+        zip_path = self.local_path(spec)
+        return zip_path.with_suffix(".parquet")
+    
+    def parquet_path(self, spec: BinanceFileSpec) -> Path:
+        zip_path = self.local_path(spec)
+        return zip_path.with_suffix(".parquet")
+
+    def parquet_exists(self, spec: BinanceFileSpec) -> bool:
+        return self.parquet_path(spec).exists()
+
+    def delete_artifacts(self, spec: BinanceFileSpec) -> None:
+        zip_path = self.local_path(spec)
+        checksum_spec = BinanceFileSpec(
+            market=spec.market,
+            frequency=spec.frequency,
+            dataset=spec.dataset,
+            symbol=spec.symbol,
+            date=spec.date,
+            interval=spec.interval,
+            with_checksum=True,
+        )
+        checksum_path = self.local_path(checksum_spec)
+
+        for p in (zip_path, checksum_path):
+            if p.exists():
+                try:
+                    p.unlink()
+                except OSError:
+                    pass
 
 
 
