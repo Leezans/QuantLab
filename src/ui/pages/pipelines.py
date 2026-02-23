@@ -3,12 +3,23 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.services.types import LabService
+from ui.services.registry import get_lab_service, list_labs
 
+st.set_page_config(page_title="Pipelines", layout="wide")
+st.subheader("⚙️ Pipelines")
 
-def render_pipelines(service: LabService) -> None:
-    st.subheader("Pipelines")
+labs = list_labs()
+default_lab_idx = 0 if labs else None
 
+with st.sidebar:
+    st.header("Configuration")
+    lab = st.selectbox("Lab", options=labs, index=default_lab_idx) if labs else None
+
+if lab is None:
+    st.error("No lab service available.")
+else:
+    service = get_lab_service(lab)
+    
     c1, c2 = st.columns([2, 3])
     with c1:
         symbols = service.list_symbols()
