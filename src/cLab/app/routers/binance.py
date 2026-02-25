@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, HTTPException, Query
 
 from cLab.app.schemas import (
@@ -9,8 +11,8 @@ from cLab.app.schemas import (
     VolumeProfileBinDTO,
     VolumeProfileResponseDTO,
 )
-from cLab.app.services.market_data import (
-    compute_volume_profile,
+from cLab.core.services.market_data import (
+    compute_volume_profile_from_parquet,
     ensure_klines_range,
     ensure_trades_range,
 )
@@ -158,27 +160,46 @@ def get_volume_profile(
     bins: int = Query(80, ge=10, le=300),
     volume_type: str = Query("base", pattern="^(base|quote)$"),
     normalize: bool = False,
-    preview_rows: int = Query(10000, ge=1, le=50000),
+    preview_rows: int = Query(
+        300000,
+        ge=1000,
+        le=5000000,
+        description="Maximum trade rows scanned for volume profile computation.",
+    ),
+    start_ts: Annotated[
+        int | None,
+        Query(ge=0, description="Visible range start in Unix seconds."),
+    ] = None,
+    end_ts: Annotated[
+        int | None,
+        Query(ge=0, description="Visible range end in Unix seconds."),
+    ] = None,
 ) -> VolumeProfileResponseDTO:
     try:
+        if start_ts is not None and end_ts is not None and end_ts < start_ts:
+            raise ValueError(f"end_ts < start_ts: {end_ts} < {start_ts}")
+
         trades_result = ensure_trades_range(
             symbol=symbol,
             start=start,
             end=end,
             market=market,
             style=style,
-            preview_rows=preview_rows,
+            preview_rows=1,
             fetch_checksum=True,
             verify_checksum=True,
             compression="snappy",
             raise_on_error=False,
         )
 
-        centers, volumes = compute_volume_profile(
-            trades_result.preview,
+        centers, volumes = compute_volume_profile_from_parquet(
+            trades_result.parquet_paths,
             bins=bins,
             volume_type=volume_type,
             normalize=normalize,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            max_rows=preview_rows,
         )
         profile = [VolumeProfileBinDTO(price=float(c), volume=float(v)) for c, v in zip(centers, volumes)]
 

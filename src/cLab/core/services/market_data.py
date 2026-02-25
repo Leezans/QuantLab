@@ -205,6 +205,104 @@ def compute_volume_profile(
     return centers.tolist(), values.tolist()
 
 
+def compute_volume_profile_from_parquet(
+    parquet_paths: list[str],
+    *,
+    bins: int,
+    volume_type: str,
+    normalize: bool,
+    start_ts: int | None = None,
+    end_ts: int | None = None,
+    max_rows: int | None = None,
+    batch_size: int = 200_000,
+) -> tuple[list[float], list[float]]:
+    """Compute a trades volume profile from parquet files in streaming batches."""
+    if not parquet_paths:
+        return [], []
+
+    profile_bins = max(1, int(bins))
+    if max_rows is not None and max_rows <= 0:
+        return [], []
+    if start_ts is not None and end_ts is not None and end_ts < start_ts:
+        return [], []
+
+    needs_timestamp_filter = start_ts is not None or end_ts is not None
+
+    min_price = np.inf
+    max_price = -np.inf
+    scanned = 0
+    for frame in _iter_trade_frames(
+        parquet_paths,
+        batch_size=batch_size,
+        include_timestamp=needs_timestamp_filter,
+    ):
+        prices, _ = _extract_trade_prices_and_weights(
+            frame,
+            volume_type=volume_type,
+            start_ts=start_ts,
+            end_ts=end_ts,
+        )
+        if prices.size == 0:
+            continue
+        if max_rows is not None:
+            remaining = max_rows - scanned
+            if remaining <= 0:
+                break
+            prices = prices[:remaining]
+        if prices.size == 0:
+            continue
+        scanned += int(prices.size)
+        min_price = min(min_price, float(np.min(prices)))
+        max_price = max(max_price, float(np.max(prices)))
+
+    if not np.isfinite(min_price) or not np.isfinite(max_price):
+        return [], []
+
+    if min_price == max_price:
+        epsilon = max(abs(min_price) * 1e-6, 1e-8)
+        min_price -= epsilon
+        max_price += epsilon
+
+    hist = np.zeros(profile_bins, dtype=float)
+    scanned = 0
+    for frame in _iter_trade_frames(
+        parquet_paths,
+        batch_size=batch_size,
+        include_timestamp=needs_timestamp_filter,
+    ):
+        prices, weights = _extract_trade_prices_and_weights(
+            frame,
+            volume_type=volume_type,
+            start_ts=start_ts,
+            end_ts=end_ts,
+        )
+        if prices.size == 0:
+            continue
+        if max_rows is not None:
+            remaining = max_rows - scanned
+            if remaining <= 0:
+                break
+            prices = prices[:remaining]
+            weights = weights[:remaining]
+        if prices.size == 0:
+            continue
+        scanned += int(prices.size)
+        batch_hist, _ = np.histogram(
+            prices,
+            bins=profile_bins,
+            range=(min_price, max_price),
+            weights=weights,
+        )
+        hist += batch_hist.astype(float)
+
+    if normalize and hist.sum() > 0:
+        hist = hist / hist.sum() * 100.0
+
+    edges = np.linspace(min_price, max_price, profile_bins + 1, dtype=float)
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    return centers.tolist(), hist.tolist()
+
+
 def _ensure_dataset_range(
     *,
     symbol: str,
@@ -290,6 +388,112 @@ def _format_download_error(*, symbol: str, day: str, exc: Exception) -> str:
     return f"{symbol} {day}: {type(exc).__name__}: {exc}"
 
 
+def _iter_trade_frames(
+    parquet_paths: list[str],
+    *,
+    batch_size: int,
+    include_timestamp: bool,
+) -> Iterator[pd.DataFrame]:
+    columns = ["price", "quantity", "quote_quantity"]
+    if include_timestamp:
+        columns.append("timestamp")
+    if pq is not None:
+        for path in parquet_paths:
+            try:
+                parquet_file = pq.ParquetFile(path)
+                for batch in parquet_file.iter_batches(batch_size=batch_size, columns=columns):
+                    frame = batch.to_pandas()
+                    if not frame.empty:
+                        yield frame
+                continue
+            except Exception:
+                pass
+
+            try:
+                frame = pd.read_parquet(path, columns=columns)
+                if not frame.empty:
+                    yield frame
+            except Exception:
+                continue
+        return
+
+    for path in parquet_paths:
+        try:
+            frame = pd.read_parquet(path, columns=columns)
+            if not frame.empty:
+                yield frame
+        except Exception:
+            continue
+
+
+def _extract_trade_prices_and_weights(
+    frame: pd.DataFrame,
+    *,
+    volume_type: str,
+    start_ts: int | None,
+    end_ts: int | None,
+) -> tuple[np.ndarray, np.ndarray]:
+    if "price" not in frame.columns:
+        return np.array([], dtype=float), np.array([], dtype=float)
+
+    prices = pd.to_numeric(frame["price"], errors="coerce")
+    if volume_type == "quote" and "quote_quantity" in frame.columns:
+        weights = pd.to_numeric(frame["quote_quantity"], errors="coerce")
+    elif "quantity" in frame.columns:
+        weights = pd.to_numeric(frame["quantity"], errors="coerce")
+    else:
+        weights = pd.Series(np.ones(len(frame), dtype=float), index=frame.index)
+
+    valid = prices.notna() & weights.notna()
+    if start_ts is not None or end_ts is not None:
+        if "timestamp" not in frame.columns:
+            return np.array([], dtype=float), np.array([], dtype=float)
+        seconds = _to_epoch_seconds(frame["timestamp"])
+        valid &= seconds.notna()
+        if start_ts is not None:
+            valid &= seconds >= float(start_ts)
+        if end_ts is not None:
+            valid &= seconds <= float(end_ts)
+
+    if not valid.any():
+        return np.array([], dtype=float), np.array([], dtype=float)
+
+    price_values = prices.loc[valid].to_numpy(dtype=float, copy=False)
+    weight_values = weights.loc[valid].to_numpy(dtype=float, copy=False)
+    finite = np.isfinite(price_values) & np.isfinite(weight_values)
+    if not finite.any():
+        return np.array([], dtype=float), np.array([], dtype=float)
+
+    price_values = price_values[finite]
+    weight_values = np.clip(weight_values[finite], a_min=0.0, a_max=None)
+    return price_values, weight_values
+
+
+def _to_epoch_seconds(series: pd.Series) -> pd.Series:
+    if pd.api.types.is_datetime64_any_dtype(series):
+        dt = pd.to_datetime(series, utc=True, errors="coerce")
+        out = pd.Series(np.nan, index=series.index, dtype=float)
+        valid = dt.notna()
+        out.loc[valid] = dt.loc[valid].astype("int64") / 1e9
+        return out
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    non_null = numeric.dropna()
+    if non_null.empty:
+        return pd.Series(np.nan, index=series.index, dtype=float)
+
+    max_abs = float(non_null.abs().max())
+    if max_abs >= 1e17:
+        divider = 1e9
+    elif max_abs >= 1e14:
+        divider = 1e6
+    elif max_abs >= 1e11:
+        divider = 1e3
+    else:
+        divider = 1.0
+    return numeric / divider
+
+
 def _load_klines_preview(parquet_paths: list[str], preview_rows: int) -> pd.DataFrame:
     if preview_rows <= 0 or not parquet_paths:
         return pd.DataFrame()
@@ -313,7 +517,7 @@ def _load_klines_preview(parquet_paths: list[str], preview_rows: int) -> pd.Data
         return pd.DataFrame()
 
     merged = pd.concat(frames, axis=0, ignore_index=True)
-    merged["open_time"] = pd.to_datetime(merged["open_time"], unit="ms", utc=True, errors="coerce")
+    merged["open_time"] = _to_utc_datetime(merged["open_time"])
     merged = merged.loc[~merged["open_time"].isna()].copy()
     merged = merged.sort_values("open_time")
     for col in ("open", "high", "low", "close", "volume"):
@@ -347,7 +551,7 @@ def _load_trades_preview(parquet_paths: list[str], preview_rows: int) -> pd.Data
         return pd.DataFrame()
 
     merged = pd.concat(frames, axis=0, ignore_index=True)
-    merged["timestamp"] = pd.to_datetime(merged["timestamp"], unit="ms", utc=True, errors="coerce")
+    merged["timestamp"] = _to_utc_datetime(merged["timestamp"])
     merged = merged.loc[~merged["timestamp"].isna()].copy()
     merged = merged.sort_values("timestamp")
     for col in ("price", "quantity", "quote_quantity"):
@@ -356,6 +560,29 @@ def _load_trades_preview(parquet_paths: list[str], preview_rows: int) -> pd.Data
     merged = merged.dropna(subset=["price"])
     merged["time"] = (merged["timestamp"].astype("int64") // 10**9).astype(int)
     return merged.head(preview_rows)
+
+
+def _to_utc_datetime(series: pd.Series) -> pd.Series:
+    """Parse timestamps into UTC datetimes, auto-detecting second/ms/us/ns epochs."""
+    if pd.api.types.is_datetime64_any_dtype(series):
+        dt = pd.to_datetime(series, utc=True, errors="coerce")
+        return dt
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    non_null = numeric.dropna()
+    if non_null.empty:
+        return pd.to_datetime(series, utc=True, errors="coerce")
+
+    max_abs = float(non_null.abs().max())
+    if max_abs >= 1e17:
+        unit = "ns"
+    elif max_abs >= 1e14:
+        unit = "us"
+    elif max_abs >= 1e11:
+        unit = "ms"
+    else:
+        unit = "s"
+    return pd.to_datetime(numeric, unit=unit, utc=True, errors="coerce")
 
 
 def _read_parquet_head(path: str, *, columns: list[str], nrows: int) -> pd.DataFrame:

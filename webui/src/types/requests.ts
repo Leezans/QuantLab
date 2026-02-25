@@ -17,4 +17,6 @@ export interface VolumeProfileRequest extends BaseRangeRequest {
   bins: number;
   volume_type: "base" | "quote";
   normalize: boolean;
+  start_ts?: number;
+  end_ts?: number;
 }

@@ -1,8 +1,8 @@
 import { Alert, Card, Col, Divider, Row, Space, Statistic, Table, Tabs, Typography } from "antd";
 import axios from "axios";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { KlineChart } from "@/components/charts/KlineChart";
+import { KlineChart, type VisibleTimeRange } from "@/components/charts/KlineChart";
 import { TradesChart } from "@/components/charts/TradesChart";
 import { VolumeProfileChart } from "@/components/charts/VolumeProfileChart";
 import { MarketDataForm, type MarketDataFormValues } from "@/components/forms/MarketDataForm";
@@ -20,6 +20,8 @@ import type {
   TradesResponseDTO,
   VolumeProfileResponseDTO,
 } from "@/types/dto";
+
+const PROFILE_SCAN_ROWS = 200_000;
 
 export function CryptoLabPage() {
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -104,12 +106,44 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<KlinesResponseDTO | null>(null);
+  const [profile, setProfile] = useState<VolumeProfileResponseDTO | null>(null);
+  const [query, setQuery] = useState<MarketDataFormValues | null>(null);
+  const [visibleRange, setVisibleRange] = useState<VisibleTimeRange | null>(null);
+  const profileRequestIdRef = useRef(0);
+  const combinedErrors = useMemo(
+    () => [...new Set([...(result?.errors ?? []), ...(profile?.errors ?? [])])],
+    [profile?.errors, result?.errors],
+  );
+
+  const onVisibleTimeRangeChange = useCallback((next: VisibleTimeRange | null) => {
+    setVisibleRange((prev) => {
+      if (next === null && prev === null) {
+        return prev;
+      }
+      if (next === null) {
+        return null;
+      }
+      const normalized = {
+        from: Math.floor(next.from),
+        to: Math.ceil(next.to),
+      };
+      if (prev && prev.from === normalized.from && prev.to === normalized.to) {
+        return prev;
+      }
+      return normalized;
+    });
+  }, []);
 
   const onSubmit = async (values: MarketDataFormValues) => {
+    profileRequestIdRef.current += 1;
     setLoading(true);
     setError(null);
+    setResult(null);
+    setProfile(null);
+    setQuery(null);
+    setVisibleRange(null);
     try {
-      const data = await fetchKlines({
+      const klinesData = await fetchKlines({
         symbol: values.symbol,
         market: values.market,
         style: values.style,
@@ -118,7 +152,8 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
         interval: values.interval,
         preview_rows: values.preview_rows,
       });
-      setResult(data);
+      setResult(klinesData);
+      setQuery(values);
     } catch (err: unknown) {
       setError(formatApiError(err, "Failed to load klines"));
     } finally {
@@ -126,14 +161,64 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
     }
   };
 
+  useEffect(() => {
+    if (!result || !query) {
+      return;
+    }
+
+    const requestId = profileRequestIdRef.current + 1;
+    profileRequestIdRef.current = requestId;
+    const timer = window.setTimeout(() => {
+      fetchVolumeProfile({
+        symbol: query.symbol,
+        market: query.market,
+        style: query.style,
+        start: query.start,
+        end: query.end,
+        bins: query.bins,
+        volume_type: query.volume_type,
+        normalize: query.normalize,
+        preview_rows: Math.max(query.preview_rows, PROFILE_SCAN_ROWS),
+        start_ts: visibleRange?.from,
+        end_ts: visibleRange?.to,
+      })
+        .then((profileData) => {
+          if (profileRequestIdRef.current !== requestId) {
+            return;
+          }
+          setProfile(profileData);
+          setError(null);
+        })
+        .catch((err: unknown) => {
+          if (profileRequestIdRef.current !== requestId) {
+            return;
+          }
+          setError(formatApiError(err, "Failed to load volume profile"));
+        });
+    }, 280);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [query, result, visibleRange]);
+
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
       <MarketDataForm mode="klines" symbols={symbols} loading={loading} onSubmit={onSubmit} />
       <RequestState loading={loading} error={error} />
       {result ? <DataMetrics source={result.source} rowCount={result.row_count} stats={result.stats} /> : null}
-      {result ? <KlineChart data={result.preview as KlinePointDTO[]} maPeriod={20} emaPeriod={50} /> : null}
+      {result ? (
+        <KlineChart
+          data={result.preview as KlinePointDTO[]}
+          volumeProfile={profile?.profile ?? []}
+          maPeriod={20}
+          emaPeriod={50}
+          onVisibleTimeRangeChange={onVisibleTimeRangeChange}
+        />
+      ) : null}
+      {profile ? <VolumeProfileChart data={profile.profile} /> : null}
       {result ? <PathList paths={result.parquet_paths} /> : null}
-      {result && result.errors.length ? <ErrorList errors={result.errors} /> : null}
+      {combinedErrors.length ? <ErrorList errors={combinedErrors} /> : null}
       {result ? <KlinesPreviewTable data={result.preview} /> : null}
     </Space>
   );
@@ -144,10 +229,16 @@ function TradesPanel({ symbols }: { symbols: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TradesResponseDTO | null>(null);
   const [profile, setProfile] = useState<VolumeProfileResponseDTO | null>(null);
+  const combinedErrors = useMemo(
+    () => [...new Set([...(result?.errors ?? []), ...(profile?.errors ?? [])])],
+    [profile?.errors, result?.errors],
+  );
 
   const onSubmit = async (values: MarketDataFormValues) => {
     setLoading(true);
     setError(null);
+    setResult(null);
+    setProfile(null);
     try {
       const [tradesData, profileData] = await Promise.all([
         fetchTrades({
@@ -167,7 +258,7 @@ function TradesPanel({ symbols }: { symbols: string[] }) {
           bins: values.bins,
           volume_type: values.volume_type,
           normalize: values.normalize,
-          preview_rows: Math.max(values.preview_rows, 5000),
+          preview_rows: Math.max(values.preview_rows, PROFILE_SCAN_ROWS),
         }),
       ]);
 
@@ -188,7 +279,7 @@ function TradesPanel({ symbols }: { symbols: string[] }) {
       {result ? <TradesChart data={result.preview as TradePointDTO[]} /> : null}
       {profile ? <VolumeProfileChart data={profile.profile} /> : null}
       {result ? <PathList paths={result.parquet_paths} /> : null}
-      {result && result.errors.length ? <ErrorList errors={result.errors} /> : null}
+      {combinedErrors.length ? <ErrorList errors={combinedErrors} /> : null}
       {result ? <TradesPreviewTable data={result.preview} /> : null}
     </Space>
   );

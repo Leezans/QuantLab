@@ -123,19 +123,17 @@ export function MarketDataForm({ mode, symbols, loading, onSubmit }: MarketDataF
         <Input type="number" min={100} max={50000} style={{ width: 110 }} />
       </Form.Item>
 
-      {mode === "trades" ? (
-        <Space>
-          <Form.Item name="bins" label="Bins">
-            <Input type="number" min={10} max={300} style={{ width: 90 }} />
-          </Form.Item>
-          <Form.Item name="volume_type" label="Volume">
-            <Select style={{ width: 100 }} options={[{ value: "base" }, { value: "quote" }]} />
-          </Form.Item>
-          <Form.Item name="normalize" label="Normalize" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-        </Space>
-      ) : null}
+      <Space>
+        <Form.Item name="bins" label="Bins">
+          <Input type="number" min={10} max={300} style={{ width: 90 }} />
+        </Form.Item>
+        <Form.Item name="volume_type" label="Volume">
+          <Select style={{ width: 100 }} options={[{ value: "base" }, { value: "quote" }]} />
+        </Form.Item>
+        <Form.Item name="normalize" label="Normalize" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+      </Space>
 
       <Form.Item>
         <Button type="primary" htmlType="submit" loading={loading}>
