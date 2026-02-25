@@ -23,7 +23,7 @@ def _limit_rows(frame: pd.DataFrame, max_points: int) -> tuple[pd.DataFrame, boo
     if max_points <= 0 or frame.shape[0] <= max_points:
         return frame, False
 
-    # 中文注释：点位过多时按步长抽样，避免前端渲染卡顿。
+    # 点位过多时按步长抽样，避免前端渲染卡顿。
     step = max(1, int(np.ceil(frame.shape[0] / max_points)))
     limited = frame.iloc[::step].copy()
     return limited, True
@@ -167,7 +167,7 @@ def build_volume_profile_figure(
     else:
         weights = pd.Series(np.ones(len(prices)), index=prices.index)
 
-    # 中文注释：基于价格分箱统计成交量分布（筹码分布近似）。
+    # 基于价格分箱统计成交量分布（筹码分布近似）。
     hist, edges = np.histogram(prices.to_numpy(), bins=max(1, bins), weights=weights.to_numpy())
     centers = (edges[:-1] + edges[1:]) / 2.0
 

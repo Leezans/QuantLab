@@ -12,12 +12,10 @@ from ui.services.types.common import (
     TaskStatus,
 )
 from ui.services.types.cryptos import (
-    KlinesRangeRequestDTO,
-    KlinesRangeResultDTO,
-    TradesRangeRequest,
-    TradesRangeRequestDTO,
-    TradesRangeResult,
-    TradesRangeResultDTO,
+    KlinesRequestDTO,
+    KlinesResultDTO,
+    TradesRequestDTO,
+    TradesResultDTO,
 )
 
 
@@ -51,7 +49,7 @@ class BaseHTTPService:
     def ensure_factors(self, req: EnsureFactorsRequest) -> EnsureFactorsResult:
         raise NotImplementedError("HTTP service is scaffolded but endpoint mapping is not implemented yet.")
 
-    def run_trades_range(self, req: TradesRangeRequest) -> TradesRangeResult:
+    def run_trades_range(self, req: TradesRequestDTO) -> TradesResultDTO:
         raise NotImplementedError("HTTP service is scaffolded but endpoint mapping is not implemented yet.")
 
     def start_task(self, name: str, payload: dict) -> TaskRef:
@@ -60,8 +58,8 @@ class BaseHTTPService:
     def get_task(self, task_id: str) -> TaskStatus:
         raise NotImplementedError("HTTP service is scaffolded but endpoint mapping is not implemented yet.")
 
-    def get_or_create_klines_range(self, req: KlinesRangeRequestDTO) -> KlinesRangeResultDTO:
+    def get_or_create_klines(self, req: KlinesRequestDTO) -> KlinesResultDTO:
         raise NotImplementedError("HTTP market-data adapter is scaffolded but not implemented yet.")
 
-    def get_or_create_trades_range(self, req: TradesRangeRequestDTO) -> TradesRangeResultDTO:
+    def get_or_create_trades(self, req: TradesRequestDTO) -> TradesResultDTO:
         raise NotImplementedError("HTTP market-data adapter is scaffolded but not implemented yet.")

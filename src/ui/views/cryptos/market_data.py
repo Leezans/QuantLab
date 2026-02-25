@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.components.charts import (
-    build_candlestick_figure,
-    build_trades_price_figure,
-    build_volume_profile_figure,
+from ui.components.charts_lightweight import (
+    render_klines_chart,
+    render_trades_price_chart,
+    render_volume_profile_chart,
 )
 from ui.components.inputs import (
     render_date_range_inputs,
@@ -16,14 +16,15 @@ from ui.components.inputs import (
 from ui.components.status import render_download_summary, render_errors, render_paths
 from ui.components.views import render_preview_table
 from ui.services.orchestrators.market_data import (
-    get_or_create_klines_range,
-    get_or_create_trades_range,
+    compute_volume_profile_from_trades,
+    get_or_create_klines,
+    get_or_create_trades,
 )
 from ui.services.types.cryptos import (
-    KlinesRangeRequestDTO,
-    KlinesRangeResultDTO,
-    TradesRangeRequestDTO,
-    TradesRangeResultDTO,
+    KlinesRequestDTO,
+    KlinesResultDTO,
+    TradesRequestDTO,
+    TradesResultDTO,
 )
 
 _MAX_CHART_POINTS = 5000
@@ -40,17 +41,13 @@ def render_market_data_tab() -> None:
 
 def _render_klines_panel() -> None:
     st.subheader("Klines")
-    symbol = render_symbol_input(
-        key_prefix="crypto_data_klines",
-        symbols=[],
-        default_symbol="BTCUSDT",
-    )
+    symbol = render_symbol_input(key_prefix="crypto_data_klines", symbols=[], default_symbol="BTCUSDT")
     start, end, interval = render_time_range_inputs(
         key_prefix="crypto_data_klines",
         default_start="2024-01-01",
         default_end="2024-01-07",
         interval_options=["1m", "5m", "1h", "1d"],
-        default_interval="1m",
+        default_interval="1h",
     )
     market, layout = render_market_layout_inputs(
         key_prefix="crypto_data_klines",
@@ -60,7 +57,7 @@ def _render_klines_panel() -> None:
 
     run = st.button("Load Klines", type="primary", key="crypto_data_klines_run")
     if run:
-        req = KlinesRangeRequestDTO(
+        req = KlinesRequestDTO(
             symbol=symbol,
             start=start,
             end=end,
@@ -69,7 +66,7 @@ def _render_klines_panel() -> None:
             style=layout,
         )
         with st.spinner("Loading klines (cache-first)..."):
-            st.session_state["crypto_data_klines_result"] = get_or_create_klines_range(req)
+            st.session_state["crypto_data_klines_result"] = get_or_create_klines(req)
 
     result = st.session_state.get("crypto_data_klines_result")
     if result is None:
@@ -79,16 +76,10 @@ def _render_klines_panel() -> None:
     _render_klines_result(result)
 
     st.markdown("---")
-    _render_klines_volume_profile_controls(
-        symbol=symbol,
-        start=start,
-        end=end,
-        market=market,
-        layout=layout,
-    )
+    _render_klines_volume_profile_controls(symbol=symbol, start=start, end=end, market=market, layout=layout)
 
 
-def _render_klines_result(result: KlinesRangeResultDTO) -> None:
+def _render_klines_result(result: KlinesResultDTO) -> None:
     render_download_summary(
         source=result.source,
         ok=result.ok,
@@ -104,15 +95,14 @@ def _render_klines_result(result: KlinesRangeResultDTO) -> None:
         st.info("No klines rows available for chart.")
         return
 
-    fig, plotted, limited = build_candlestick_figure(
+    plotted_rows, limited = render_klines_chart(
         result.preview.reset_index(),
+        key="crypto_data_klines_chart",
         max_points=_MAX_CHART_POINTS,
-        include_volume=True,
     )
     if limited:
         st.warning(f"Kline points exceed {_MAX_CHART_POINTS}. Downsampled for rendering.")
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(f"Plotted rows: {plotted.shape[0]}")
+    st.caption(f"Plotted rows: {plotted_rows}")
 
 
 def _render_klines_volume_profile_controls(
@@ -126,17 +116,22 @@ def _render_klines_volume_profile_controls(
     st.subheader("Volume Profile (from Trades)")
     c1, c2, c3 = st.columns(3)
     with c1:
-        bins = st.number_input("Bins", min_value=10, max_value=300, value=80, step=5, key="crypto_vp_bins_k")
+        bins = st.number_input("Bins", min_value=10, max_value=300, value=80, step=5, key="crypto_vp_bins_kline")
     with c2:
-        volume_type = st.selectbox("Volume Type", options=["base", "quote"], index=0, key="crypto_vp_type_k")
+        volume_type = st.selectbox(
+            "Volume Type",
+            options=["base", "quote"],
+            index=0,
+            key="crypto_vp_type_kline",
+        )
     with c3:
-        normalize = st.checkbox("Normalize", value=False, key="crypto_vp_norm_k")
+        normalize = st.checkbox("Normalize", value=False, key="crypto_vp_norm_kline")
 
     run_profile = st.button("Build Volume Profile", key="crypto_vp_run_k")
     if not run_profile:
         return
 
-    trades_req = TradesRangeRequestDTO(
+    trades_req = TradesRequestDTO(
         symbol=symbol,
         start=start,
         end=end,
@@ -145,27 +140,20 @@ def _render_klines_volume_profile_controls(
         preview_rows=5000,
     )
     with st.spinner("Loading trades preview for volume profile..."):
-        trades_result = get_or_create_trades_range(trades_req)
+        trades_result = get_or_create_trades(trades_req)
 
-    fig = build_volume_profile_figure(
+    profile = compute_volume_profile_from_trades(
         trades_result.preview.reset_index(),
         bins=int(bins),
         volume_type=volume_type,
         normalize=normalize,
     )
-    if fig is None:
-        st.info("Insufficient trades preview data to build volume profile.")
-        return
-    st.plotly_chart(fig, use_container_width=True)
+    render_volume_profile_chart(profile, title="Klines Range Volume Profile")
 
 
 def _render_trades_panel() -> None:
     st.subheader("Trades")
-    symbol = render_symbol_input(
-        key_prefix="crypto_data_trades",
-        symbols=[],
-        default_symbol="BTCUSDT",
-    )
+    symbol = render_symbol_input(key_prefix="crypto_data_trades", symbols=[], default_symbol="BTCUSDT")
     start, end = render_date_range_inputs(
         key_prefix="crypto_data_trades",
         default_start="2024-01-01",
@@ -178,7 +166,7 @@ def _render_trades_panel() -> None:
     )
     run = st.button("Load Trades", type="primary", key="crypto_data_trades_run")
     if run:
-        req = TradesRangeRequestDTO(
+        req = TradesRequestDTO(
             symbol=symbol,
             start=start,
             end=end,
@@ -186,7 +174,7 @@ def _render_trades_panel() -> None:
             style=layout,
         )
         with st.spinner("Loading trades (cache-first)..."):
-            st.session_state["crypto_data_trades_result"] = get_or_create_trades_range(req)
+            st.session_state["crypto_data_trades_result"] = get_or_create_trades(req)
 
     result = st.session_state.get("crypto_data_trades_result")
     if result is None:
@@ -198,7 +186,7 @@ def _render_trades_panel() -> None:
     _render_trades_volume_profile(result)
 
 
-def _render_trades_result(result: TradesRangeResultDTO) -> None:
+def _render_trades_result(result: TradesResultDTO) -> None:
     render_download_summary(
         source=result.source,
         ok=result.ok,
@@ -214,34 +202,35 @@ def _render_trades_result(result: TradesRangeResultDTO) -> None:
         st.info("No trades rows available for chart.")
         return
 
-    fig, plotted, limited = build_trades_price_figure(
+    plotted_rows, limited = render_trades_price_chart(
         result.preview.reset_index(),
+        key="crypto_data_trades_chart",
         max_points=_MAX_CHART_POINTS,
     )
     if limited:
         st.warning(f"Trade points exceed {_MAX_CHART_POINTS}. Downsampled for rendering.")
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(f"Plotted rows: {plotted.shape[0]}")
+    st.caption(f"Plotted rows: {plotted_rows}")
 
 
-def _render_trades_volume_profile(result: TradesRangeResultDTO) -> None:
+def _render_trades_volume_profile(result: TradesResultDTO) -> None:
     st.subheader("Volume Profile")
     c1, c2, c3 = st.columns(3)
     with c1:
-        bins = st.number_input("Bins", min_value=10, max_value=300, value=80, step=5, key="crypto_vp_bins_t")
+        bins = st.number_input("Bins", min_value=10, max_value=300, value=80, step=5, key="crypto_vp_bins_trade")
     with c2:
-        volume_type = st.selectbox("Volume Type", options=["base", "quote"], index=0, key="crypto_vp_type_t")
+        volume_type = st.selectbox(
+            "Volume Type",
+            options=["base", "quote"],
+            index=0,
+            key="crypto_vp_type_trade",
+        )
     with c3:
-        normalize = st.checkbox("Normalize", value=False, key="crypto_vp_norm_t")
+        normalize = st.checkbox("Normalize", value=False, key="crypto_vp_norm_trade")
 
-    fig = build_volume_profile_figure(
+    profile = compute_volume_profile_from_trades(
         result.preview.reset_index(),
         bins=int(bins),
         volume_type=volume_type,
         normalize=normalize,
     )
-    if fig is None:
-        st.info("Insufficient trades preview data to build volume profile.")
-        return
-    st.plotly_chart(fig, use_container_width=True)
-
+    render_volume_profile_chart(profile, title="Trades Volume Profile")

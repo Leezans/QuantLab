@@ -5,7 +5,10 @@ from typing import Dict
 
 from ui.services.contracts import LabService, MarketDataService
 
-_SERVICE_MODE = os.getenv("QUANTLAB_SERVICE_MODE", "direct").strip().lower()
+_SERVICE_MODE = os.getenv(
+    "UI_BACKEND_MODE",
+    os.getenv("QUANTLAB_SERVICE_MODE", "direct"),
+).strip().lower()
 
 if _SERVICE_MODE == "direct":
     from ui.services.direct.crypto_lab import CLabService
@@ -42,7 +45,7 @@ elif _SERVICE_MODE == "http":
         "crypto": _crypto,
     }
 else:
-    raise ValueError(f"Unsupported QUANTLAB_SERVICE_MODE: {_SERVICE_MODE}")
+    raise ValueError(f"Unsupported UI_BACKEND_MODE: {_SERVICE_MODE}")
 
 
 def list_labs() -> list[str]:

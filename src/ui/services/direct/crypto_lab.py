@@ -27,12 +27,12 @@ from ui.services.types.common import (
     TaskStatus,
 )
 from ui.services.types.cryptos import (
-    KlinesRangeRequestDTO,
-    KlinesRangeResultDTO,
+    KlinesRequestDTO,
+    KlinesResultDTO,
     TradesRangeRequest,
-    TradesRangeRequestDTO,
     TradesRangeResult,
-    TradesRangeResultDTO,
+    TradesRequestDTO,
+    TradesResultDTO,
 )
 
 try:
@@ -61,7 +61,7 @@ class CLabService:
     def supports_trades_download(self) -> bool:
         return True
 
-    def get_or_create_klines_range(self, req: KlinesRangeRequestDTO) -> KlinesRangeResultDTO:
+    def get_or_create_klines(self, req: KlinesRequestDTO) -> KlinesResultDTO:
         """Get-or-create klines parquet files and return preview rows for UI."""
         symbol = req.symbol.strip().upper()
         market = self._to_market(req.market)
@@ -84,7 +84,7 @@ class CLabService:
         row_count = self._count_rows(parquet_paths)
         source = self._resolve_source(ok=ok, skipped=skipped, failed=failed)
 
-        return KlinesRangeResultDTO(
+        return KlinesResultDTO(
             symbol=symbol,
             market=market.value,
             interval=req.interval,
@@ -99,7 +99,11 @@ class CLabService:
             preview=preview,
         )
 
-    def get_or_create_trades_range(self, req: TradesRangeRequestDTO) -> TradesRangeResultDTO:
+    def get_or_create_klines_range(self, req: KlinesRequestDTO) -> KlinesResultDTO:
+        """Backward-compatible wrapper for older orchestrator names."""
+        return self.get_or_create_klines(req)
+
+    def get_or_create_trades(self, req: TradesRequestDTO) -> TradesResultDTO:
         """Get-or-create trades parquet files and return preview rows for UI."""
         symbol = req.symbol.strip().upper()
         market = self._to_market(req.market)
@@ -118,12 +122,11 @@ class CLabService:
             raise_on_error=req.raise_on_error,
         )
 
-        # 中文注释：Trades 只返回预览，避免一次性加载全量数据到内存。
         preview = self._load_trades_preview(parquet_paths=parquet_paths, preview_rows=req.preview_rows)
         row_count = self._count_rows(parquet_paths)
         source = self._resolve_source(ok=ok, skipped=skipped, failed=failed)
 
-        return TradesRangeResultDTO(
+        return TradesResultDTO(
             symbol=symbol,
             market=market.value,
             source=source,
@@ -137,10 +140,14 @@ class CLabService:
             preview=preview,
         )
 
+    def get_or_create_trades_range(self, req: TradesRequestDTO) -> TradesResultDTO:
+        """Backward-compatible wrapper for older orchestrator names."""
+        return self.get_or_create_trades(req)
+
     def ensure_klines(self, req: EnsureKlinesRequest) -> EnsureKlinesResult:
         """Compatibility API for existing lab-service callers."""
-        result = self.get_or_create_klines_range(
-            KlinesRangeRequestDTO(
+        result = self.get_or_create_klines(
+            KlinesRequestDTO(
                 symbol=req.symbol,
                 start=req.start,
                 end=req.end,
@@ -183,8 +190,8 @@ class CLabService:
                 errors=[],
             )
 
-        klines_result = self.get_or_create_klines_range(
-            KlinesRangeRequestDTO(
+        klines_result = self.get_or_create_klines(
+            KlinesRequestDTO(
                 symbol=req.symbol,
                 start=req.start,
                 end=req.end,
@@ -211,8 +218,8 @@ class CLabService:
 
     def run_trades_range(self, req: TradesRangeRequest) -> TradesRangeResult:
         """Compatibility API for existing callers that still use TradesRangeRequest."""
-        return self.get_or_create_trades_range(
-            TradesRangeRequestDTO(
+        return self.get_or_create_trades(
+            TradesRequestDTO(
                 symbol=req.symbol,
                 start=req.start,
                 end=req.end,
@@ -258,7 +265,6 @@ class CLabService:
         parquet_paths: list[str] = []
         errors: list[str] = []
 
-        # 中文注释：先查本地 parquet，若缺失再下载并转换。
         days = list(iter_dates(start_date, end_date))
         for day in days:
             day_str = day.strftime("%Y-%m-%d")

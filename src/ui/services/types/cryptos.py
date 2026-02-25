@@ -6,8 +6,8 @@ import pandas as pd
 
 
 @dataclass(frozen=True)
-class KlinesRangeRequestDTO:
-    """Request DTO for a daily kline range get-or-create workflow."""
+class KlinesRequestDTO:
+    """Request DTO for klines get-or-create workflow."""
 
     symbol: str
     start: str
@@ -24,8 +24,8 @@ class KlinesRangeRequestDTO:
 
 
 @dataclass
-class KlinesRangeResultDTO:
-    """Result DTO returned to UI for kline range queries."""
+class KlinesResultDTO:
+    """Result DTO returned to UI for klines queries."""
 
     symbol: str
     market: str
@@ -42,8 +42,8 @@ class KlinesRangeResultDTO:
 
 
 @dataclass(frozen=True)
-class TradesRangeRequestDTO:
-    """Request DTO for a daily trades range get-or-create workflow."""
+class TradesRequestDTO:
+    """Request DTO for trades get-or-create workflow."""
 
     symbol: str
     start: str
@@ -59,8 +59,8 @@ class TradesRangeRequestDTO:
 
 
 @dataclass
-class TradesRangeResultDTO:
-    """Result DTO returned to UI for trades range queries."""
+class TradesResultDTO:
+    """Result DTO returned to UI for trades queries."""
 
     symbol: str
     market: str
@@ -75,6 +75,20 @@ class TradesRangeResultDTO:
     preview: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
-# Backward compatibility aliases.
-TradesRangeRequest = TradesRangeRequestDTO
-TradesRangeResult = TradesRangeResultDTO
+@dataclass(frozen=True)
+class VolumeProfileDTO:
+    """Computed volume profile over price bins."""
+
+    bin_centers: list[float] = field(default_factory=list)
+    volumes: list[float] = field(default_factory=list)
+    volume_type: str = "base"
+    normalized: bool = False
+
+
+# Backward compatibility aliases for previous naming.
+KlinesRangeRequestDTO = KlinesRequestDTO
+KlinesRangeResultDTO = KlinesResultDTO
+TradesRangeRequestDTO = TradesRequestDTO
+TradesRangeResultDTO = TradesResultDTO
+TradesRangeRequest = TradesRequestDTO
+TradesRangeResult = TradesResultDTO
