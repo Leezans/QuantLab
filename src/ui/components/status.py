@@ -26,3 +26,18 @@ def render_paths(paths: list[str], title: str = "Parquet Paths") -> None:
     st.subheader(title)
     st.write(paths)
 
+
+def render_download_summary(
+    *,
+    source: str,
+    ok: int,
+    skipped: int,
+    failed: int,
+    row_count: int,
+) -> None:
+    st.caption(f"Source: {source}")
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("OK", ok)
+    c2.metric("Skipped", skipped)
+    c3.metric("Failed", failed)
+    c4.metric("Rows", row_count)

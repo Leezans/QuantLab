@@ -10,7 +10,14 @@ from ui.services.types.common import (
     TaskRef,
     TaskStatus,
 )
-from ui.services.types.cryptos import TradesRangeRequest, TradesRangeResult
+from ui.services.types.cryptos import (
+    KlinesRangeRequestDTO,
+    KlinesRangeResultDTO,
+    TradesRangeRequest,
+    TradesRangeRequestDTO,
+    TradesRangeResult,
+    TradesRangeResultDTO,
+)
 
 
 class LabService(Protocol):
@@ -24,3 +31,9 @@ class LabService(Protocol):
     def start_task(self, name: str, payload: dict) -> TaskRef: ...
     def get_task(self, task_id: str) -> TaskStatus: ...
 
+
+class MarketDataService(Protocol):
+    """Adapter protocol consumed by market-data orchestrators."""
+
+    def get_or_create_klines_range(self, req: KlinesRangeRequestDTO) -> KlinesRangeResultDTO: ...
+    def get_or_create_trades_range(self, req: TradesRangeRequestDTO) -> TradesRangeResultDTO: ...

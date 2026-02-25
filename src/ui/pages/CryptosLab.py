@@ -2,29 +2,17 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.services.registry import get_lab_service
-from ui.views.cryptos.factors import render_factors
-from ui.views.cryptos.kline import render_kline
-from ui.views.cryptos.overview import render_overview
-from ui.views.cryptos.trades import render_trades
+from ui.views.cryptos.market_data import render_market_data_tab
 
 st.set_page_config(page_title="CryptosLab", layout="wide")
-
-service = get_lab_service("crypto")
 
 st.title("cLab / CryptosLab")
 st.caption("Page only orchestrates views. Views only call services.")
 
-tabs = st.tabs(["Overview", "Kline", "Trades", "Factors"])
+tabs = st.tabs(["Data", "Factors"])
 
 with tabs[0]:
-    render_overview(service)
+    render_market_data_tab()
 
 with tabs[1]:
-    render_kline(service)
-
-with tabs[2]:
-    render_trades(service)
-
-with tabs[3]:
-    render_factors(service)
+    st.info("Factors tab is reserved for the next iteration.")

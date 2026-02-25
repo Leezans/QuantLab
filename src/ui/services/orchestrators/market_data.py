@@ -4,6 +4,13 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
+from ui.services.types.cryptos import (
+    KlinesRangeRequestDTO,
+    KlinesRangeResultDTO,
+    TradesRangeRequestDTO,
+    TradesRangeResultDTO,
+)
+
 
 def parse_date_yyyy_mm_dd(value: str) -> date:
     try:
@@ -50,3 +57,18 @@ def merge_kline_frames(frames: list[pd.DataFrame]) -> pd.DataFrame:
         merged = merged[~merged.index.duplicated(keep="last")]
     return merged
 
+
+def get_or_create_klines_range(req: KlinesRangeRequestDTO) -> KlinesRangeResultDTO:
+    """Fetch klines with cache-first behavior through a swappable service adapter."""
+    from ui.services.registry import get_market_data_service
+
+    adapter = get_market_data_service(req.lab_key)
+    return adapter.get_or_create_klines_range(req)
+
+
+def get_or_create_trades_range(req: TradesRangeRequestDTO) -> TradesRangeResultDTO:
+    """Fetch trades with cache-first behavior through a swappable service adapter."""
+    from ui.services.registry import get_market_data_service
+
+    adapter = get_market_data_service(req.lab_key)
+    return adapter.get_or_create_trades_range(req)

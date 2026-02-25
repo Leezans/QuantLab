@@ -62,13 +62,16 @@ class FLabPlaceholderService:
     def run_trades_range(self, req: TradesRangeRequest) -> TradesRangeResult:
         return TradesRangeResult(
             symbol=req.symbol.strip().upper(),
+            market=req.market,
             source="unavailable",
             total_days=0,
             ok=0,
             skipped=0,
             failed=1,
+            row_count=0,
             parquet_paths=[],
             errors=[_FLAB_UNAVAILABLE],
+            preview=pd.DataFrame(),
         )
 
     def start_task(self, name: str, payload: dict) -> TaskRef:

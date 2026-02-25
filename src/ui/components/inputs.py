@@ -32,3 +32,41 @@ def render_time_range_inputs(
         interval = st.selectbox("Interval", options=options, index=default_index, key=f"{key_prefix}_interval")
 
     return start, end, interval
+
+
+def render_date_range_inputs(
+    key_prefix: str,
+    *,
+    default_start: str = "2024-01-01",
+    default_end: str = "2024-01-07",
+) -> tuple[str, str]:
+    c1, c2 = st.columns(2)
+    with c1:
+        start = st.text_input("Start (YYYY-MM-DD)", value=default_start, key=f"{key_prefix}_start")
+    with c2:
+        end = st.text_input("End (YYYY-MM-DD)", value=default_end, key=f"{key_prefix}_end")
+    return start, end
+
+
+def render_market_layout_inputs(
+    key_prefix: str,
+    *,
+    default_market: str = "spot",
+    default_layout: str = "mirror",
+) -> tuple[str, str]:
+    c1, c2 = st.columns(2)
+    with c1:
+        market = st.selectbox(
+            "Market",
+            options=["spot", "futures"],
+            index=0 if default_market == "spot" else 1,
+            key=f"{key_prefix}_market",
+        )
+    with c2:
+        layout = st.selectbox(
+            "Layout",
+            options=["mirror", "hive"],
+            index=0 if default_layout == "mirror" else 1,
+            key=f"{key_prefix}_layout",
+        )
+    return market, layout

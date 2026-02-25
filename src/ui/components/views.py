@@ -13,3 +13,8 @@ def render_timeseries_view(df: pd.DataFrame) -> None:
         st.line_chart(df["close"])
     else:
         st.info("Column 'close' not found; skip chart.")
+
+
+def render_preview_table(df: pd.DataFrame, *, rows: int = 200, title: str = "Preview") -> None:
+    st.subheader(title)
+    st.dataframe(df.head(rows), use_container_width=True)
