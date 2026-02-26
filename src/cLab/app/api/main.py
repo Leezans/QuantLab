@@ -1,9 +1,9 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from cLab.app.routers import api_router
+from cLab.app.api.routers import api_router
 
 
 def create_app() -> FastAPI:

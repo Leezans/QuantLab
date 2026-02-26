@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from cLab.app.api.deps import get_data_service
 from cLab.app.schemas import (
     KlinesResponseDTO,
     PipelineStatsDTO,
@@ -11,18 +12,14 @@ from cLab.app.schemas import (
     VolumeProfileBinDTO,
     VolumeProfileResponseDTO,
 )
-from cLab.core.services.market_data import (
-    compute_volume_profile_from_parquet,
-    ensure_klines_range,
-    ensure_trades_range,
-)
+from cLab.app.services import DataService
 
-router = APIRouter(prefix="/api/binance", tags=["binance"])
+router = APIRouter(prefix="/api/binance", tags=["data"])
 
 
 @router.get("/symbols", response_model=list[str])
-def list_symbols() -> list[str]:
-    return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
+def list_symbols(service: DataService = Depends(get_data_service)) -> list[str]:
+    return service.list_symbols()
 
 
 @router.get("/klines", response_model=KlinesResponseDTO)
@@ -38,9 +35,10 @@ def get_klines(
     verify_checksum: bool = True,
     compression: str = "snappy",
     raise_on_error: bool = False,
+    service: DataService = Depends(get_data_service),
 ) -> KlinesResponseDTO:
     try:
-        result = ensure_klines_range(
+        result = service.get_klines(
             symbol=symbol,
             start=start,
             end=end,
@@ -102,9 +100,10 @@ def get_trades(
     verify_checksum: bool = True,
     compression: str = "snappy",
     raise_on_error: bool = False,
+    service: DataService = Depends(get_data_service),
 ) -> TradesResponseDTO:
     try:
-        result = ensure_trades_range(
+        result = service.get_trades(
             symbol=symbol,
             start=start,
             end=end,
@@ -174,12 +173,13 @@ def get_volume_profile(
         int | None,
         Query(ge=0, description="Visible range end in Unix seconds."),
     ] = None,
+    service: DataService = Depends(get_data_service),
 ) -> VolumeProfileResponseDTO:
     try:
         if start_ts is not None and end_ts is not None and end_ts < start_ts:
             raise ValueError(f"end_ts < start_ts: {end_ts} < {start_ts}")
 
-        trades_result = ensure_trades_range(
+        trades_result = service.get_trades(
             symbol=symbol,
             start=start,
             end=end,
@@ -192,8 +192,8 @@ def get_volume_profile(
             raise_on_error=False,
         )
 
-        centers, volumes = compute_volume_profile_from_parquet(
-            trades_result.parquet_paths,
+        centers, volumes = service.get_volume_profile(
+            parquet_paths=trades_result.parquet_paths,
             bins=bins,
             volume_type=volume_type,
             normalize=normalize,
@@ -220,3 +220,4 @@ def get_volume_profile(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
+

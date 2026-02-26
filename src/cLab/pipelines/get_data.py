@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
 
-from cLab.core.config import db_cfg
+from cLab.config import db_cfg
 from cLab.infra.dataSource.binance_source import BinanceVisionClient
 from cLab.infra.storage.fileDB import (
     BinanceFileSpec,

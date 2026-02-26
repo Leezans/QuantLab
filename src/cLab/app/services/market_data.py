@@ -7,7 +7,7 @@ from typing import Iterable, Iterator
 import numpy as np
 import pandas as pd
 
-from cLab.core.config import db_cfg
+from cLab.config import db_cfg
 from cLab.infra.dataSource.binance_source import BinanceVisionClient
 from cLab.infra.storage.fileDB import (
     BinanceFileSpec,

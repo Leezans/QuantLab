@@ -76,6 +76,8 @@ export function KlineChart({
 }: KlineChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const recomputeProfileBarsRef = useRef<() => void>(() => {});
+  const onVisibleRangeChangeRef = useRef<KlineChartProps["onVisibleTimeRangeChange"]>(onVisibleTimeRangeChange);
   const rafRef = useRef<number | null>(null);
   const [profileBars, setProfileBars] = useState<ProfileBar[]>([]);
 
@@ -165,9 +167,18 @@ export function KlineChart({
     }
     rafRef.current = window.requestAnimationFrame(() => {
       rafRef.current = null;
-      recomputeProfileBars();
+      recomputeProfileBarsRef.current();
     });
-  }, [recomputeProfileBars]);
+  }, []);
+
+  useEffect(() => {
+    recomputeProfileBarsRef.current = recomputeProfileBars;
+    scheduleProfileRecompute();
+  }, [recomputeProfileBars, scheduleProfileRecompute]);
+
+  useEffect(() => {
+    onVisibleRangeChangeRef.current = onVisibleTimeRangeChange;
+  }, [onVisibleTimeRangeChange]);
 
   useEffect(() => {
     return () => {
@@ -230,21 +241,22 @@ export function KlineChart({
     }
 
     const emitVisibleRange = () => {
-      if (!onVisibleTimeRangeChange) {
+      const notify = onVisibleRangeChangeRef.current;
+      if (!notify) {
         return;
       }
       const visible = chart.timeScale().getVisibleRange();
       if (!visible) {
-        onVisibleTimeRangeChange(null);
+        notify(null);
         return;
       }
       const from = toUnixSeconds(visible.from);
       const to = toUnixSeconds(visible.to);
       if (from === null || to === null) {
-        onVisibleTimeRangeChange(null);
+        notify(null);
         return;
       }
-      onVisibleTimeRangeChange({
+      notify({
         from: Math.floor(Math.min(from, to)),
         to: Math.ceil(Math.max(from, to)),
       });
@@ -282,7 +294,7 @@ export function KlineChart({
       chart.remove();
       candleSeriesRef.current = null;
     };
-  }, [emaData, height, maData, ohlcData, onVisibleTimeRangeChange, scheduleProfileRecompute, volumeData]);
+  }, [emaData, height, maData, ohlcData, scheduleProfileRecompute, volumeData]);
 
   const showProfile = profileBars.length > 0;
   const usableVpWidth = Math.max(60, vpWidth - 8);

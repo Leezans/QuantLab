@@ -10,7 +10,7 @@ from typing import Optional, Literal
 import zipfile
 import pandas as pd
 
-from cLab.core.config import db_cfg
+from cLab.config import db_cfg
 
 
 class Market(str, Enum):

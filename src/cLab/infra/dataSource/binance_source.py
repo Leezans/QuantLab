@@ -164,7 +164,7 @@ if __name__ == "__main__":
     from pathlib import Path
     import pandas as pd
 
-    from cLab.core.config.db_cfg import load_binance_keys, BINANCE_DIR
+    from cLab.config.db_cfg import load_binance_keys, BINANCE_DIR
     from cLab.infra.storage.fileDB import (
         BinancePathLayout,
         FileDB,
