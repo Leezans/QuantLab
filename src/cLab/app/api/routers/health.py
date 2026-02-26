@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from cLab.app.schemas import HealthResponseDTO
+from cLab.app.dto import HealthResponseDTO
 
 router = APIRouter(tags=["health"])
 

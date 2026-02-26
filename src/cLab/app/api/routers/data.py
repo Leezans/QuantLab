@@ -4,22 +4,22 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from cLab.app.api.deps import get_data_service
-from cLab.app.schemas import (
+from cLab.app.api.deps import get_data_pipeline
+from cLab.app.dto import (
     KlinesResponseDTO,
     PipelineStatsDTO,
     TradesResponseDTO,
     VolumeProfileBinDTO,
     VolumeProfileResponseDTO,
 )
-from cLab.app.services import DataService
+from cLab.pipelines import DataPipeline
 
 router = APIRouter(prefix="/api/binance", tags=["data"])
 
 
 @router.get("/symbols", response_model=list[str])
-def list_symbols(service: DataService = Depends(get_data_service)) -> list[str]:
-    return service.list_symbols()
+def list_symbols(pipeline: DataPipeline = Depends(get_data_pipeline)) -> list[str]:
+    return pipeline.list_symbols()
 
 
 @router.get("/klines", response_model=KlinesResponseDTO)
@@ -35,10 +35,10 @@ def get_klines(
     verify_checksum: bool = True,
     compression: str = "snappy",
     raise_on_error: bool = False,
-    service: DataService = Depends(get_data_service),
+    pipeline: DataPipeline = Depends(get_data_pipeline),
 ) -> KlinesResponseDTO:
     try:
-        result = service.get_klines(
+        result = pipeline.get_klines(
             symbol=symbol,
             start=start,
             end=end,
@@ -100,10 +100,10 @@ def get_trades(
     verify_checksum: bool = True,
     compression: str = "snappy",
     raise_on_error: bool = False,
-    service: DataService = Depends(get_data_service),
+    pipeline: DataPipeline = Depends(get_data_pipeline),
 ) -> TradesResponseDTO:
     try:
-        result = service.get_trades(
+        result = pipeline.get_trades(
             symbol=symbol,
             start=start,
             end=end,
@@ -173,27 +173,15 @@ def get_volume_profile(
         int | None,
         Query(ge=0, description="Visible range end in Unix seconds."),
     ] = None,
-    service: DataService = Depends(get_data_service),
+    pipeline: DataPipeline = Depends(get_data_pipeline),
 ) -> VolumeProfileResponseDTO:
     try:
-        if start_ts is not None and end_ts is not None and end_ts < start_ts:
-            raise ValueError(f"end_ts < start_ts: {end_ts} < {start_ts}")
-
-        trades_result = service.get_trades(
+        result = pipeline.get_volume_profile_for_range(
             symbol=symbol,
             start=start,
             end=end,
             market=market,
             style=style,
-            preview_rows=1,
-            fetch_checksum=True,
-            verify_checksum=True,
-            compression="snappy",
-            raise_on_error=False,
-        )
-
-        centers, volumes = service.get_volume_profile(
-            parquet_paths=trades_result.parquet_paths,
             bins=bins,
             volume_type=volume_type,
             normalize=normalize,
@@ -201,23 +189,25 @@ def get_volume_profile(
             end_ts=end_ts,
             max_rows=preview_rows,
         )
-        profile = [VolumeProfileBinDTO(price=float(c), volume=float(v)) for c, v in zip(centers, volumes)]
+        profile = [
+            VolumeProfileBinDTO(price=float(c), volume=float(v))
+            for c, v in zip(result.centers, result.volumes)
+        ]
 
         return VolumeProfileResponseDTO(
-            symbol=trades_result.symbol,
-            market=trades_result.market,
+            symbol=result.trades_result.symbol,
+            market=result.trades_result.market,
             start=start,
             end=end,
             bins=bins,
             volume_type=volume_type,
             normalized=normalize,
             profile=profile,
-            trades_source=trades_result.source,
-            trades_row_count=trades_result.row_count,
-            errors=trades_result.errors,
+            trades_source=result.trades_result.source,
+            trades_row_count=result.trades_result.row_count,
+            errors=result.trades_result.errors,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}") from exc
-

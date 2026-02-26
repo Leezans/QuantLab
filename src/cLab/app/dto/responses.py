@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-MarketLiteral = Literal["spot", "futures"]
-LayoutLiteral = Literal["mirror", "hive"]
-VolumeTypeLiteral = Literal["base", "quote"]
+from cLab.app.dto.types import MarketLiteral, VolumeTypeLiteral
 
 
 class PipelineStatsDTO(BaseModel):
@@ -80,3 +78,48 @@ class VolumeProfileResponseDTO(BaseModel):
 
 class HealthResponseDTO(BaseModel):
     status: str
+
+
+class BacktestSummaryDTO(BaseModel):
+    total_return: float
+    max_drawdown: float
+    sharpe_ratio: float
+    final_equity: float
+    trade_count: int
+
+
+class BacktestRunResponseDTO(BaseModel):
+    run_id: str
+    artifact_path: str
+    summary: BacktestSummaryDTO
+
+
+class BacktestRecordResponseDTO(BaseModel):
+    run: dict[str, Any]
+
+
+class FeatureBuildResponseDTO(BaseModel):
+    artifact_path: str
+    row_count: int
+
+
+class ResearchRunsResponseDTO(BaseModel):
+    runs: list[dict[str, Any]]
+
+
+__all__ = [
+    "BacktestRecordResponseDTO",
+    "BacktestRunResponseDTO",
+    "BacktestSummaryDTO",
+    "FeatureBuildResponseDTO",
+    "HealthResponseDTO",
+    "KlinePointDTO",
+    "KlinesResponseDTO",
+    "PipelineStatsDTO",
+    "ResearchRunsResponseDTO",
+    "TradePointDTO",
+    "TradesResponseDTO",
+    "VolumeProfileBinDTO",
+    "VolumeProfileResponseDTO",
+]
+
