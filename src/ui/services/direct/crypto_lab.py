@@ -5,7 +5,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from cLab.core.config import db_cfg
+from cLab.config import db_cfg
 from cLab.infra.dataSource.binance_source import BinanceVisionClient
 from cLab.infra.storage.fileDB import (
     BinanceFileSpec,

@@ -103,18 +103,34 @@ function CryptoDataTab({ symbols }: { symbols: string[] }) {
 }
 
 function KlinesPanel({ symbols }: { symbols: string[] }) {
+  // 表单提交和网络请求的通用状态
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // K线接口返回的数据（主数据源）
   const [result, setResult] = useState<KlinesResponseDTO | null>(null);
+
+  // 成交量分布（volume profile）接口返回的数据
   const [profile, setProfile] = useState<VolumeProfileResponseDTO | null>(null);
+
+  // 记录最近一次提交的查询参数，后续用于请求 volume profile
   const [query, setQuery] = useState<MarketDataFormValues | null>(null);
+
+  // 记录图表当前可见时间范围（用户缩放/拖动图表后会变化）
   const [visibleRange, setVisibleRange] = useState<VisibleTimeRange | null>(null);
+
+  // 用“递增ID”标记最新请求，避免旧请求晚回来把新数据覆盖（防竞态）
   const profileRequestIdRef = useRef(0);
+
+  // 合并后端可能返回的两个错误数组，并去重
   const combinedErrors = useMemo(
     () => [...new Set([...(result?.errors ?? []), ...(profile?.errors ?? [])])],
     [profile?.errors, result?.errors],
   );
 
+  // 图表可见区间变化时触发：
+  // 1) 把浮点范围规整成整数秒（from向下取整，to向上取整）
+  // 2) 如果和上次一样，则返回 prev，减少不必要的重渲染和请求
   const onVisibleTimeRangeChange = useCallback((next: VisibleTimeRange | null) => {
     setVisibleRange((prev) => {
       if (next === null && prev === null) {
@@ -134,8 +150,12 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
     });
   }, []);
 
+  // 点击表单“提交”时先拉取K线数据
   const onSubmit = async (values: MarketDataFormValues) => {
+    // 提交新查询时先推进请求ID，等价于“让旧请求作废”
     profileRequestIdRef.current += 1;
+
+    // 清空旧状态，进入加载态
     setLoading(true);
     setError(null);
     setResult(null);
@@ -152,6 +172,9 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
         interval: values.interval,
         preview_rows: values.preview_rows,
       });
+
+      // K线成功后，保存结果和查询参数
+      // query 会作为后续 volume profile 请求的输入
       setResult(klinesData);
       setQuery(values);
     } catch (err: unknown) {
@@ -166,8 +189,11 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
       return;
     }
 
+    // 为本次 volume profile 请求分配唯一ID
     const requestId = profileRequestIdRef.current + 1;
     profileRequestIdRef.current = requestId;
+
+    // 280ms 防抖：拖动/缩放图表时避免过于频繁请求
     const timer = window.setTimeout(() => {
       fetchVolumeProfile({
         symbol: query.symbol,
@@ -183,6 +209,7 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
         end_ts: visibleRange?.to,
       })
         .then((profileData) => {
+          // 如果不是最新请求，直接忽略返回结果
           if (profileRequestIdRef.current !== requestId) {
             return;
           }
@@ -190,6 +217,7 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
           setError(null);
         })
         .catch((err: unknown) => {
+          // 同理：旧请求的错误也不应污染当前界面
           if (profileRequestIdRef.current !== requestId) {
             return;
           }
@@ -198,14 +226,18 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
     }, 280);
 
     return () => {
+      // 依赖变化或组件卸载时，清除定时器，避免内存泄漏
       window.clearTimeout(timer);
     };
   }, [query, result, visibleRange]);
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
+      {/* mode="klines" 表示该表单按K线模式展示字段 */}
       <MarketDataForm mode="klines" symbols={symbols} loading={loading} onSubmit={onSubmit} />
       <RequestState loading={loading} error={error} />
+
+      {/* 有主数据才显示统计信息 */}
       {result ? <DataMetrics source={result.source} rowCount={result.row_count} stats={result.stats} /> : null}
       {result ? (
         <KlineChart
@@ -216,6 +248,8 @@ function KlinesPanel({ symbols }: { symbols: string[] }) {
           onVisibleTimeRangeChange={onVisibleTimeRangeChange}
         />
       ) : null}
+
+      {/* profile 单独请求，成功后再展示 */}
       {profile ? <VolumeProfileChart data={profile.profile} /> : null}
       {result ? <PathList paths={result.parquet_paths} /> : null}
       {combinedErrors.length ? <ErrorList errors={combinedErrors} /> : null}
