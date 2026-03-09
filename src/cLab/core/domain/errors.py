@@ -1,17 +1,17 @@
 ﻿from __future__ import annotations
 
 
-class ClabError(Exception):
+class CLabError(Exception):
     """Base exception for core domain errors."""
 
 
-class ValidationError(ClabError):
+class ValidationError(CLabError):
     """Raised when domain input validation fails."""
 
 
-class DataNotFoundError(ClabError):
+class DataNotFoundError(CLabError):
     """Raised when required data cannot be found."""
 
 
-class BacktestError(ClabError):
+class BacktestError(CLabError):
     """Raised when backtest execution fails."""
