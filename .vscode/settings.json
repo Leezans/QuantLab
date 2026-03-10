@@ -8,6 +8,9 @@
     "python.analysis.exclude": [
         "../botLab/**"
     ],
+    "python.analysis.extraPaths": [
+        "./src"
+    ],
     "files.exclude": {
         "../botLab": true
     }

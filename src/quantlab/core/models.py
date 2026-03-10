@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Mapping
+from typing import Any, Mapping, Optional
 
 from quantlab.core.enums import AssetClass, OrderType, Side, SignalDirection
 
 
 @dataclass(frozen=True, slots=True)
-class Instrument:
-    symbol: str
-    venue: str
-    asset_class: AssetClass
-    quote_currency: str = "USD"
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+class Instrument:            # 交易标的（描述一个可交易的资产 如apple的stock或者黄金期货）
+    symbol: str              # 交易标的的唯一标识符，通常是一个字符串，例如 "AAPL"、"BTC-USD"、"ESZ9" 等
+    venue: str               # 交易所或市场，例如 "NYSE"、"NASDAQ"、"CME"、"Binance" 等
+    asset_class: AssetClass  # 资产类别，例如股票、期货、加密货币等
+    quote_currency: str = "USD"   # 计价货币，例如 "USD"、"EUR"、"JPY" 等
+    metadata: Mapping[str, Any] = field(default_factory=dict)   # 其他可选的元数据字段，例如合约规格、交易时间等
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,14 +25,14 @@ class Bar:
     low: float
     close: float
     volume: float
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, Any] = field(default_factory=dict)   # 其他可选的元数据字段，例如成交量加权平均价格等
 
 
 @dataclass(frozen=True, slots=True)
 class Trade:
     timestamp: datetime
     instrument: Instrument
-    trade_id: str
+    trade_id: Optional[str|int] = None
     price: float
     quantity: float
     side: Side | None = None
@@ -44,7 +44,7 @@ class Trade:
 
 
 @dataclass(frozen=True, slots=True)
-class Quote:
+class Quote:                    # 最佳买卖报价（Top of Book / BBO）
     timestamp: datetime
     instrument: Instrument
     bid_price: float
