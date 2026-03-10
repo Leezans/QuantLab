@@ -126,7 +126,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 pip install -e ".[live]"   # optional, only needed for python-binance websocket feeds
+pip install -e ".[api]"    # optional, only needed for FastAPI/Uvicorn Web UI backend
 python -m quantlab architecture
+python -m quantlab api-server --host 0.0.0.0 --port 8000
 python -m quantlab smoke-backtest
 python -m quantlab data-demo
 python -m quantlab microstructure-demo
