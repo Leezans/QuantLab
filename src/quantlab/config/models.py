@@ -7,7 +7,8 @@ import os
 
 def _default_crypto_data_root() -> Path:
     if os.name == "nt":
-        return Path("G:/database/crypto")
+        # return Path("G:/database/crypto")
+        return Path.home() / "Documents" / "database" / "crypto"
     elif os.name == "posix":
         return Path.home() / "Documents" / "database" / "crypto"
     raise RuntimeError(f"Unsupported OS: {os.name}")
