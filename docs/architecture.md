@@ -100,6 +100,18 @@ Responsibilities:
 
 This is where QuantLab evolves from a library into a usable internal platform.
 
+### 7. API Delivery Layer
+
+Locations: `src/quantlab/api`, `quantlab api-server`
+
+Responsibilities:
+
+- Provide a stable HTTP interface for Web UI and external clients.
+- Expose read APIs for architecture, runtime config, and catalog datasets.
+- Expose workflow-trigger APIs (for example smoke backtest) without embedding trading logic in the API module.
+
+The API layer should remain a thin adapter over core workflows so domain logic continues to live in `research`, `strategy`, `portfolio`, `risk`, and `backtest` modules.
+
 ## Extension Model
 
 The platform is intentionally protocol-driven. A new venue, a new factor model, or a new allocator should be introduced by implementing a contract instead of modifying the existing workflow engine.

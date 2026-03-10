@@ -1673,6 +1673,16 @@ def run_binance_synthesize_depth(
     return "\n".join([history_summary, synthetic_summary, f"materialized_snapshots={len(snapshots)}"])
 
 
+def run_api_server(config_path: str, host: str = "127.0.0.1", port: int = 8000) -> None:
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise RuntimeError("uvicorn is required to run the API server. Install with: pip install -e '.[api]'") from exc
+    from quantlab.api import create_app
+
+    uvicorn.run(create_app(config_path=config_path), host=host, port=port)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="quantlab", description="QuantLab research platform skeleton")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1840,6 +1850,11 @@ def build_parser() -> argparse.ArgumentParser:
     regime_binance_parser.add_argument("--interval", default="1m")
     regime_binance_parser.add_argument("--trade-dataset", choices=["aggTrades", "trades"], default="aggTrades")
     regime_binance_parser.add_argument("--orderbook-datasets", nargs="*", default=[])
+
+    api_server_parser = subparsers.add_parser("api-server", help="Run the FastAPI server for Web UI integration")
+    api_server_parser.add_argument("--config", default="config/base.toml")
+    api_server_parser.add_argument("--host", default="127.0.0.1")
+    api_server_parser.add_argument("--port", type=int, default=8000)
     return parser
 
 
@@ -1998,6 +2013,9 @@ def main(argv: list[str] | None = None) -> int:
                 orderbook_datasets=args.orderbook_datasets,
             )
         )
+        return 0
+    if args.command == "api-server":
+        run_api_server(config_path=args.config, host=args.host, port=args.port)
         return 0
 
     parser.error(f"unknown command: {args.command}")
