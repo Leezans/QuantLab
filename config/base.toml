@@ -1,0 +1,26 @@
+[project]
+name = "QuantLab"
+environment = "research"
+
+[storage]
+raw_data_dir = "~/Documents/database/crypto/raw"
+curated_data_dir = "~/Documents/database/crypto/curated"
+feature_store_dir = "~/Documents/database/crypto/features"
+intraday_cache_dir = "~/Documents/database/crypto/intraday_cache"
+warehouse_dir = "~/Documents/database/crypto/warehouse"
+catalog_path = "~/Documents/database/crypto/catalog/catalog.json"
+duckdb_path = "~/Documents/database/crypto/artifacts/quantlab.duckdb"
+artifact_dir = "~/Documents/database/crypto/artifacts"
+
+[research]
+default_universe = ["BTCUSDT", "ETHUSDT", "SPY", "ES"]
+primary_frequency = "1d"
+base_currency = "USD"
+
+[runtime]
+timezone = "UTC"
+max_workers = 4
+
+[execution]
+paper_trading = true
+default_slippage_bps = 5.0

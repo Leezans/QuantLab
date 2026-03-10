@@ -1,44 +1,43 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "quantlab"
 version = "0.1.0"
-description = "A quantitative trading laboratory for futures and stocks analysis"
-readme = "readme.md"
-requires-python = ">=3.8"
-authors = [
-    {name = "QuantLab Team"}
-]
+description = "Institutional-style quantitative research and trading platform skeleton"
+readme = "README.md"
+requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.21.0",
-    "pandas>=1.3.0",
-    "pytdx>=1.72",
-    "pyarrow>=12.0.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.30.0",
-    "streamlit>=1.31.0",
-    "streamlit-lightweight-charts-v5",
-    "streamlit-lightweight-charts",
+  "duckdb>=1.4.0",
+  "pyarrow>=18.0.0",
+  "pytz>=2024.1",
+  "requests>=2.32.0"
+]
+authors = [
+  { name = "QuantLab" }
+]
+license = { text = "Proprietary" }
+keywords = ["quant", "trading", "research", "backtest", "systematic"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Intended Audience :: Financial and Insurance Industry",
+  "Topic :: Office/Business :: Financial :: Investment"
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "httpx>=0.27.0",
-    "black>=22.0.0",
-    "flake8>=4.0.0",
-    "mypy>=0.950",
-]
+[project.scripts]
+quantlab = "quantlab.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.black]
-line-length = 100
-target-version = ["py38", "py39", "py310", "py311"]
+[project.optional-dependencies]
+live = ["python-binance"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
-python_files = ["test_*.py"]
