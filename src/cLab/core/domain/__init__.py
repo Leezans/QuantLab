@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from cLab.core.domain.errors import BacktestError, ClabError, DataNotFoundError, ValidationError
+from cLab.core.domain.errors import BacktestError, CLabError, DataNotFoundError, ValidationError
 from cLab.core.domain.types import (
     BacktestMetrics,
     BacktestResult,
