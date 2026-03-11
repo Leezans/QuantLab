@@ -32,9 +32,9 @@ class Bar:
 class Trade:
     timestamp: datetime
     instrument: Instrument
-    trade_id: Optional[str|int] = None
     price: float
     quantity: float
+    trade_id: Optional[str|int] = None
     side: Side | None = None
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
@@ -63,7 +63,7 @@ class Quote:                    # 最佳买卖报价（Top of Book / BBO）
 
 
 @dataclass(frozen=True, slots=True)
-class OrderBookLevel:
+class OrderBookLevel:  # 订单簿某一档（任意深度 level）
     side: Side
     level: int
     price: float
@@ -81,7 +81,7 @@ class OrderBookSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
-class FeatureVector:
+class FeatureVector:   # 某个时刻、某个交易标的的一组因子值（feature vector）
     as_of: datetime
     instrument: Instrument
     values: Mapping[str, float]
@@ -145,20 +145,42 @@ class PortfolioSnapshot:
     cash: float
     positions: dict[str, Position] = field(default_factory=dict)
 
-    def nav(self, marks: Mapping[str, float]) -> float:
+    # Net Asset Value（资产净值）nav
+    def nav(self, marketPrices: Mapping[str, float]) -> float:
         return self.cash + sum(
-            position.quantity * marks.get(symbol, position.average_price)
+            position.quantity * marketPrices.get(symbol, position.average_price)
             for symbol, position in self.positions.items()
         )
 
-    def gross_exposure(self, marks: Mapping[str, float]) -> float:
+    # 按照金融行业惯例，通常将投资组合的总风险暴露称为“Gross Exposure”。
+    def gross_exposure(self, marketPrices: Mapping[str, float]) -> float:
         return sum(
-            abs(position.quantity * marks.get(symbol, position.average_price))
+            abs(position.quantity * marketPrices.get(symbol, position.average_price))
+            for symbol, position in self.positions.items()
+        )
+    
+     # 净风险暴露（Net Exposure）是指投资组合中多头和空头仓位的净值，反映了投资组合相对于市场的整体风险暴露程度。
+     # 计算方法是将每个持仓的数量乘以其当前价格（或标记价格），然后根据持仓方向（多头为正，空头为负）进行加总。
+     # 净风险暴露可以帮助投资者了解他们的投资组合在市场波动中的潜在风险。
+    def net_exposure(self, marketPrices: Mapping[str, float]) -> float:
+        return sum(
+            position.quantity * marketPrices.get(symbol, position.average_price)
             for symbol, position in self.positions.items()
         )
 
-    def net_exposure(self, marks: Mapping[str, float]) -> float:
-        return sum(
-            position.quantity * marks.get(symbol, position.average_price)
-            for symbol, position in self.positions.items()
-        )
+
+
+
+if __name__ == "__main__":
+    # 简单的测试用例
+    btc = Instrument(symbol="BTC-USD", venue="Coinbase", asset_class=AssetClass.CRYPTO)
+    gold = Instrument(symbol="GOLD", venue="COMEX", asset_class=AssetClass.FUTURE)
+    ps = PortfolioSnapshot(
+    timestamp=datetime.now(),
+    cash=1000.0,
+    positions={'BTC-USD': Position(instrument=btc, quantity=2, average_price=120.0),
+               'GOLD': Position(instrument=gold, quantity=5, average_price=1800.0)}
+)
+    print(ps.nav({'BTC-USD': 150.0, 'GOLD': 1850.0}))  
+    print(ps.gross_exposure({'BTC-USD': 150.0, 'GOLD': 1850.0}))
+    print(ps.net_exposure({'BTC-USD': 150.0, 'GOLD': 1850.0}))
