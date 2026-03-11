@@ -22,7 +22,6 @@ from quantlab.research.factor_selection import FactorSelectionPolicy, ThresholdF
 from quantlab.research.factor_storage import FactorArtifactRef, FactorCatalog, LocalFactorStore
 from quantlab.research.factor_orthogonalization import IdentityFactorOrthogonalizer, SequentialFactorOrthogonalizer
 from quantlab.research.curation import BinanceCuratedFeatureBuilder, CuratedFeatureDatasetService, CuratedFeatureFrame, ParquetFeatureFrameStore
-from quantlab.research.batch import FormulaicMiningSweepRunner, MiningSweepComparison, MiningSweepEntry, MiningSweepRun
 from quantlab.research.factors import (
     CandidateFactorGenerator,
     FactorDefinition,
