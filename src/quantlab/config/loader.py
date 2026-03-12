@@ -62,6 +62,8 @@ def load_settings(path: str | Path) -> QuantLabSettings:
         runtime=RuntimeSettings(
             timezone=runtime.get("timezone", "UTC"),
             max_workers=int(runtime.get("max_workers", 4)),
+            process_workers=int(runtime.get("process_workers", 2)),
+            queue_poll_timeout=float(runtime.get("queue_poll_timeout", 0.5)),
         ),
         execution=ExecutionSettings(
             paper_trading=bool(execution.get("paper_trading", True)),

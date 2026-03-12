@@ -17,4 +17,7 @@ class DefaultJobRunner(JobRunner):
             result = handler(job.payload, ctx)
             self._job_service.mark_succeeded(job_id, result)
         except Exception as exc:
-            self._job_service.mark_failed(job_id, str(exc))
+            try:
+                self._job_service.mark_failed(job_id, str(exc))
+            except KeyError:
+                raise

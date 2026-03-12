@@ -19,11 +19,18 @@ class JobStatus(str, Enum):
     FAILED = "failed"
 
 
+class JobExecutionMode(str, Enum):
+    THREAD = "thread"
+    PROCESS = "process"
+
+
 @dataclass(frozen=True, slots=True)
 class JobSpec:
     job_type: str
     payload: dict[str, Any]
     dedupe_key: str | None = None
+    execution_mode: JobExecutionMode = JobExecutionMode.THREAD
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -33,11 +40,14 @@ class JobRecord:
     payload: dict[str, Any]
     status: JobStatus
     dedupe_key: str | None
+    execution_mode: JobExecutionMode
+    metadata: dict[str, Any]
     progress: float = 0.0
     message: str = ""
     result: dict[str, Any] | None = None
     error: str | None = None
     created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -46,7 +56,17 @@ class JobRecord:
         return cls(
             job_id=str(uuid4()),
             job_type=spec.job_type,
-            payload=spec.payload,
+            payload=dict(spec.payload),
             status=JobStatus.PENDING,
             dedupe_key=spec.dedupe_key,
+            execution_mode=spec.execution_mode,
+            metadata=dict(spec.metadata),
         )
+
+    @property
+    def is_active(self) -> bool:
+        return self.status in {JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING}
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in {JobStatus.SUCCEEDED, JobStatus.FAILED}

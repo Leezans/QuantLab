@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from threading import RLock
 
 from quantlab.core.jobs import JobRecord, JobStatus
@@ -13,15 +14,16 @@ class InMemoryJobRepository(JobRepository):
 
     def add(self, job: JobRecord) -> None:
         with self._lock:
-            self._jobs[job.job_id] = job
+            self._jobs[job.job_id] = copy.deepcopy(job)
 
     def get(self, job_id: str) -> JobRecord | None:
         with self._lock:
-            return self._jobs.get(job_id)
+            job = self._jobs.get(job_id)
+            return copy.deepcopy(job) if job is not None else None
 
     def update(self, job: JobRecord) -> None:
         with self._lock:
-            self._jobs[job.job_id] = job
+            self._jobs[job.job_id] = copy.deepcopy(job)
 
     def find_active_by_dedupe_key(self, dedupe_key: str) -> JobRecord | None:
         with self._lock:
@@ -29,7 +31,7 @@ class InMemoryJobRepository(JobRepository):
                 if job.dedupe_key != dedupe_key:
                     continue
                 if job.status in {JobStatus.PENDING, JobStatus.QUEUED, JobStatus.RUNNING}:
-                    return job
+                    return copy.deepcopy(job)
         return None
 
 

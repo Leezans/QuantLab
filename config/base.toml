@@ -21,6 +21,8 @@ signal_threshold = 10000.0
 [runtime]
 timezone = "UTC"
 max_workers = 4
+process_workers = 2
+queue_poll_timeout = 0.5
 
 [execution]
 paper_trading = true

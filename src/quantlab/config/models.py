@@ -76,6 +76,8 @@ class ResearchSettings:
 class RuntimeSettings:
     timezone: str = "UTC"
     max_workers: int = 4
+    process_workers: int = 2
+    queue_poll_timeout: float = 0.5
 
 
 @dataclass(frozen=True, slots=True)

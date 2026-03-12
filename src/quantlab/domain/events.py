@@ -2,9 +2,39 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from quantlab.core.events import DomainEvent
+
+
+@dataclass(frozen=True, slots=True)
+class MarketDataDownloadRequested(DomainEvent):
+    symbol: str
+    start: str
+    end: str
+    provider: str = "default"
+
+    EVENT_TYPE: ClassVar[str] = "market_data.download_requested"
+
+
+@dataclass(frozen=True, slots=True)
+class FactorComputationRequested(DomainEvent):
+    factor_name: str
+    dataset_uri: str
+    parameters: dict[str, Any] = field(default_factory=dict)
+
+    EVENT_TYPE: ClassVar[str] = "factor.computation.requested"
+
+
+@dataclass(frozen=True, slots=True)
+class BacktestRequested(DomainEvent):
+    strategy_name: str
+    start: str
+    end: str
+    universe: tuple[str, ...] = field(default_factory=tuple)
+    parameters: dict[str, Any] = field(default_factory=dict)
+
+    EVENT_TYPE: ClassVar[str] = "backtest.requested"
 
 
 @dataclass(frozen=True, slots=True)
