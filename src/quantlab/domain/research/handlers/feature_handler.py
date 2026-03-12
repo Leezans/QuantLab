@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from quantlab.core.events import FeatureCalculated, MarketDataArrived
-from quantlab.infra.bus.interfaces import EventBus, EventHandler
-from quantlab.infra.bus.types import EventEnvelope
+from quantlab.core.events import DomainEvent, FeatureCalculated, MarketDataArrived
+from quantlab.core.interfaces import EventBus, EventHandler
 
 
 class FeatureCalculationHandler(EventHandler):
     def __init__(self, bus: EventBus) -> None:
         self._bus = bus
 
-    def __call__(self, envelope: EventEnvelope) -> None:
-        event = envelope.payload
+    def __call__(self, event: DomainEvent) -> None:
         if not isinstance(event, MarketDataArrived):
             return
 
@@ -23,10 +21,8 @@ class FeatureCalculationHandler(EventHandler):
             feature_name="price_x_volume",
             feature_value=feature_value,
             source="research.feature_engine",
+            correlation_id=event.correlation_id or event.event_id,
+            causation_id=event.event_id,
         )
 
-        self._bus.publish(EventEnvelope.wrap(
-            next_event,
-            correlation_id=envelope.correlation_id or envelope.event_id,
-            causation_id=envelope.event_id,
-        ))
+        self._bus.publish(next_event)

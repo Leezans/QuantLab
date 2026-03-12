@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from typing import Protocol
 
 from quantlab.core.events import DomainEvent
@@ -14,7 +13,7 @@ class EventHandler(Protocol):
 
 class EventBus(ABC):
     @abstractmethod
-    def subscribe(self, event_type: str, handler: EventHandler) -> None:
+    def subscribe(self, event_type: str | type[DomainEvent], handler: EventHandler) -> None:
         raise NotImplementedError
 
     @abstractmethod

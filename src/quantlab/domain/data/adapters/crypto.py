@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from quantlab.core.enums import Side
-from quantlab.core.models import Instrument, OrderBookLevel, OrderBookSnapshot, Quote, Trade
+from quantlab.domain.data.enums import Side
+from quantlab.domain.data.models import Instrument, OrderBookLevel, OrderBookSnapshot, Quote, Trade
 from quantlab.domain.data.adapters.base import MappedVendorMarketDataAdapter, QuoteFieldMap, TradeFieldMap
 
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping, Optional
 
-from quantlab.core.enums import AssetClass, OrderType, Side, SignalDirection
+from quantlab.domain.data.enums import AssetClass, OrderType, Side, SignalDirection
 
 
 @dataclass(frozen=True, slots=True)

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from quantlab.core.enums import Side
-from quantlab.core.models import Instrument, OrderBookLevel, OrderBookSnapshot, Quote, Trade
+from quantlab.domain.data.enums import Side
+from quantlab.domain.data.models import Instrument, OrderBookLevel, OrderBookSnapshot, Quote, Trade
 
 
 @dataclass(frozen=True, slots=True)
