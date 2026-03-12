@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(slots=True, frozen=True)
@@ -45,3 +47,17 @@ class LoggedEvent:
             causation_id=causation_id,
             metadata=metadata or {},
         )
+
+
+class EventLog(ABC):
+    @abstractmethod
+    def append(self, event: LoggedEvent) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def read_all(self) -> Iterable[LoggedEvent]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def next_sequence(self) -> int:
+        raise NotImplementedError

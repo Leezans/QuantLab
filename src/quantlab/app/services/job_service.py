@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, UTC
 
-from quantlab.core.events import (
+from quantlab.app.events import (
     JobFailed,
     JobProgressed,
     JobQueued,

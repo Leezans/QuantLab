@@ -6,8 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-from .base import EventLog
-from .models import LoggedEvent
+from quantlab.core.event_log import EventLog, LoggedEvent
 
 
 class JsonlEventLog(EventLog):

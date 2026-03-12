@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .base import BinaryStore
+from quantlab.core.storage import BinaryStore
 from .path_resolver import PathResolver
 
 

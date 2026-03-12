@@ -57,6 +57,7 @@ def load_settings(path: str | Path) -> QuantLabSettings:
             default_universe=tuple(research.get("default_universe", ["BTCUSDT"])),
             primary_frequency=research.get("primary_frequency", "1d"),
             base_currency=research.get("base_currency", "USD"),
+            signal_threshold=float(research.get("signal_threshold", 10000.0)),
         ),
         runtime=RuntimeSettings(
             timezone=runtime.get("timezone", "UTC"),

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 
+from quantlab.app.services.job_runner import DefaultJobRunner
 from quantlab.app.services.job_service import JobService
 from quantlab.core.jobs import JobSpec
 from quantlab.infra.bus.in_memory import InMemoryEventBus
@@ -40,10 +41,10 @@ def main() -> None:
     queue = InMemoryJobQueue()
     registry = InMemoryJobRegistry()
     service = JobService(repo=repo, queue=queue, bus=bus)
+    job_runner = DefaultJobRunner(registry=registry, job_service=service)
     workers = ThreadPoolWorkerPool(
         queue=queue,
-        registry=registry,
-        job_service=service,
+        job_runner=job_runner,
         max_workers=2,
     )
 

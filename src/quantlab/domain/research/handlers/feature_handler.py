@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from quantlab.core.events import DomainEvent
-from quantlab.domain.data.events import MarketDataArrived
-from quantlab.domain.research.events import FeatureCalculated
 from quantlab.core.interfaces import EventBus, EventHandler
+from quantlab.domain.events import FeatureCalculated, MarketDataArrived
 
 
 class FeatureCalculationHandler(EventHandler):
@@ -14,7 +13,6 @@ class FeatureCalculationHandler(EventHandler):
         if not isinstance(event, MarketDataArrived):
             return
 
-        # demo feature
         feature_value = event.last_price * event.volume
 
         next_event = FeatureCalculated(

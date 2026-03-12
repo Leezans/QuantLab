@@ -160,4 +160,3 @@ class MappedVendorMarketDataAdapter:
         if normalized in {"sell", "ask", "a", "short"}:
             return Side.SELL
         raise ValueError(f"unsupported side value for {self.vendor_name}: {value!r}")
-

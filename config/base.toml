@@ -16,6 +16,7 @@ artifact_dir = "~/Documents/database/crypto/artifacts"
 default_universe = ["BTCUSDT", "ETHUSDT", "SPY", "ES"]
 primary_frequency = "1d"
 base_currency = "USD"
+signal_threshold = 10000.0
 
 [runtime]
 timezone = "UTC"

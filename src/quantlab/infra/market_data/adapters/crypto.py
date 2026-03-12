@@ -5,7 +5,7 @@ from typing import Any
 
 from quantlab.domain.data.enums import Side
 from quantlab.domain.data.models import Instrument, OrderBookLevel, OrderBookSnapshot, Quote, Trade
-from quantlab.domain.data.adapters.base import MappedVendorMarketDataAdapter, QuoteFieldMap, TradeFieldMap
+from quantlab.infra.market_data.adapters.base import MappedVendorMarketDataAdapter, QuoteFieldMap, TradeFieldMap
 
 
 class BinanceMarketDataAdapter(MappedVendorMarketDataAdapter):

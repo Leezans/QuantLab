@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from quantlab.core.events import DomainEvent
-from quantlab.domain.research.events import FeatureCalculated
-from quantlab.domain.data.events import MarketDataArrived
-
 from quantlab.core.interfaces import EventBus, EventHandler
+from quantlab.domain.events import FeatureCalculated, SignalGenerated
 
 
 class SignalGenerationHandler(EventHandler):
-    def __init__(self, bus: EventBus, threshold: float = 10000.0) -> None:
+    def __init__(self, bus: EventBus, threshold: float) -> None:
         self._bus = bus
         self._threshold = threshold
 
@@ -19,6 +17,15 @@ class SignalGenerationHandler(EventHandler):
         side = "BUY" if event.feature_value >= self._threshold else "FLAT"
         strength = min(event.feature_value / self._threshold, 2.0)
 
-        next_event = None
+        next_event = SignalGenerated(
+            symbol=event.symbol,
+            timestamp=event.timestamp,
+            side=side,
+            strength=strength,
+            reason=f"{event.feature_name}>={self._threshold}",
+            source="research.signal_engine",
+            correlation_id=event.correlation_id or event.event_id,
+            causation_id=event.event_id,
+        )
 
         self._bus.publish(next_event)

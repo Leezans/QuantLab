@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-from quantlab.domain.data.events import MarketDataArrived
-from quantlab.domain.research.events import FeatureCalculated
+from quantlab.config.models import ResearchSettings
+from quantlab.domain.events import FeatureCalculated, MarketDataArrived
 from quantlab.domain.research.handlers.feature_handler import FeatureCalculationHandler
 from quantlab.domain.research.handlers.signal_handler import SignalGenerationHandler
 from quantlab.infra.bus import (
@@ -15,7 +13,7 @@ from quantlab.infra.bus import (
 )
 
 
-def build_bus() -> InMemoryEventBus:
+def build_bus(settings: ResearchSettings) -> InMemoryEventBus:
     registry = SubscriptionRegistry()
     bus = InMemoryEventBus(
         registry=registry,
@@ -27,26 +25,9 @@ def build_bus() -> InMemoryEventBus:
     )
 
     feature_handler = FeatureCalculationHandler(bus)
-    signal_handler = SignalGenerationHandler(bus, threshold=10000.0)
+    signal_handler = SignalGenerationHandler(bus, threshold=settings.signal_threshold)
 
     bus.subscribe(MarketDataArrived, feature_handler)
+    bus.subscribe(FeatureCalculated, signal_handler)
 
     return bus
-
-
-def demo_run() -> None:
-    bus = build_bus()
-
-    event = MarketDataArrived(
-        symbol="BTCUSDT",
-        timestamp=datetime.now(timezone.utc),
-        last_price=100.0,
-        volume=150.0,
-        source="backtest.replay",
-    )
-
-    bus.publish(event)
-
-
-if __name__ == "__main__":
-    demo_run()

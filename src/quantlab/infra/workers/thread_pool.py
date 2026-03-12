@@ -4,22 +4,19 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Final
 
-from quantlab.app.services.job_service import JobService
-from quantlab.core.interfaces import JobQueue, JobRegistry, WorkerPool
+from quantlab.core.interfaces import JobQueue, JobRunner, WorkerPool
 
 
 class ThreadPoolWorkerPool(WorkerPool):
     def __init__(
         self,
         queue: JobQueue,
-        registry: JobRegistry,
-        job_service: JobService,
+        job_runner: JobRunner,
         max_workers: int = 4,
         poll_timeout: float = 0.5,
     ) -> None:
         self._queue = queue
-        self._registry = registry
-        self._job_service = job_service
+        self._job_runner = job_runner
         self._max_workers: Final[int] = max_workers
         self._poll_timeout = poll_timeout
 
@@ -60,11 +57,4 @@ class ThreadPoolWorkerPool(WorkerPool):
             self._executor.submit(self._run_one, job_id)
 
     def _run_one(self, job_id: str) -> None:
-        try:
-            job = self._job_service.mark_running(job_id)
-            handler = self._registry.get(job.job_type)
-            ctx = self._job_service.build_context(job_id)
-            result = handler(job.payload, ctx)
-            self._job_service.mark_succeeded(job_id, result)
-        except Exception as exc:
-            self._job_service.mark_failed(job_id, str(exc))
+        self._job_runner.run(job_id)

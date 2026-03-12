@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from .base import EventLog
-from .models import LoggedEvent
+from quantlab.core.event_log import EventLog, LoggedEvent
 
 ReplayHandler = Callable[[LoggedEvent], None]
 

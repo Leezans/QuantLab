@@ -69,6 +69,7 @@ class ResearchSettings:
     default_universe: tuple[str, ...] = ("BTCUSDT",)
     primary_frequency: str = "1d"
     base_currency: str = "USD"
+    signal_threshold: float = 10000.0
 
 
 @dataclass(frozen=True, slots=True)

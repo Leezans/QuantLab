@@ -69,6 +69,10 @@ class JobRegistry(ABC):
         raise NotImplementedError
 
 
+class JobRunner(Protocol):
+    def run(self, job_id: str) -> None: ...
+
+
 class WorkerPool(ABC):
     @abstractmethod
     def start(self) -> None:
