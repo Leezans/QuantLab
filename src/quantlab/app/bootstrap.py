@@ -12,8 +12,8 @@ from quantlab.infra.bus import (
     TimingMiddleware,
 )
 from quantlab.infra.bus.types import EventEnvelope
-from quantlab.research.handlers.feature_handler import FeatureCalculationHandler
-from quantlab.research.handlers.signal_handler import SignalGenerationHandler
+from quantlab.domain.research.handlers.feature_handler import FeatureCalculationHandler
+from quantlab.domain.research.handlers.signal_handler import SignalGenerationHandler
 
 
 def build_bus() -> InMemoryEventBus:

@@ -1,118 +1,80 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Mapping, Protocol, Sequence, runtime_checkable
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from typing import Protocol
 
-from quantlab.core.enums import DataFrequency
-from quantlab.core.models import (
-    Bar,
-    FeatureVector,
-    Instrument,
-    Order,
-    OrderBookSnapshot,
-    PortfolioSnapshot,
-    Quote,
-    Signal,
-    TargetPosition,
-    Trade,
-)
+from quantlab.core.events import DomainEvent
+from quantlab.core.jobs import JobRecord, JobSpec
 
 
-@runtime_checkable
-class MarketDataSource(Protocol):
-    def fetch_bars(
-        self,
-        instrument: Instrument,
-        start: datetime,
-        end: datetime,
-        frequency: DataFrequency,
-    ) -> Sequence[Bar]:
-        ...
+class EventHandler(Protocol):
+    def __call__(self, event: DomainEvent) -> None: ...
 
 
-@runtime_checkable
-class TradeDataSource(Protocol):
-    def fetch_trades(
-        self,
-        instrument: Instrument,
-        start: datetime,
-        end: datetime,
-    ) -> Sequence[Trade]:
-        ...
+class EventBus(ABC):
+    @abstractmethod
+    def subscribe(self, event_type: str, handler: EventHandler) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def publish(self, event: DomainEvent) -> None:
+        raise NotImplementedError
 
 
-@runtime_checkable
-class QuoteDataSource(Protocol):
-    def fetch_quotes(
-        self,
-        instrument: Instrument,
-        start: datetime,
-        end: datetime,
-        frequency: DataFrequency,
-    ) -> Sequence[Quote]:
-        ...
+class JobRepository(ABC):
+    @abstractmethod
+    def add(self, job: JobRecord) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, job_id: str) -> JobRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update(self, job: JobRecord) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def find_active_by_dedupe_key(self, dedupe_key: str) -> JobRecord | None:
+        raise NotImplementedError
 
 
-@runtime_checkable
-class OrderBookDataSource(Protocol):
-    def fetch_order_book_snapshots(
-        self,
-        instrument: Instrument,
-        start: datetime,
-        end: datetime,
-        frequency: DataFrequency,
-    ) -> Sequence[OrderBookSnapshot]:
-        ...
+class JobQueue(ABC):
+    @abstractmethod
+    def put(self, job_id: str) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, timeout: float | None = None) -> str | None:
+        raise NotImplementedError
 
 
-@runtime_checkable
-class FeatureEngineer(Protocol):
-    def build(self, bars: Sequence[Bar]) -> Sequence[FeatureVector]:
-        ...
+class JobContext(ABC):
+    @abstractmethod
+    def set_progress(self, progress: float, message: str = "") -> None:
+        raise NotImplementedError
 
 
-@runtime_checkable
-class AlphaModel(Protocol):
-    def generate(self, features: Sequence[FeatureVector]) -> Sequence[Signal]:
-        ...
+class JobHandler(Protocol):
+    def __call__(self, payload: dict, ctx: JobContext) -> dict: ...
 
 
-@runtime_checkable
-class StrategyModel(Protocol):
-    def generate_targets(
-        self,
-        signals: Sequence[Signal],
-        portfolio: PortfolioSnapshot,
-    ) -> Sequence[TargetPosition]:
-        ...
+class JobRegistry(ABC):
+    @abstractmethod
+    def register(self, job_type: str, handler: JobHandler) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, job_type: str) -> JobHandler:
+        raise NotImplementedError
 
 
-@runtime_checkable
-class PortfolioConstructor(Protocol):
-    def allocate(
-        self,
-        targets: Sequence[TargetPosition],
-        portfolio: PortfolioSnapshot,
-    ) -> Sequence[TargetPosition]:
-        ...
+class WorkerPool(ABC):
+    @abstractmethod
+    def start(self) -> None:
+        raise NotImplementedError
 
-
-@runtime_checkable
-class RiskPolicy(Protocol):
-    def apply(
-        self,
-        targets: Sequence[TargetPosition],
-        portfolio: PortfolioSnapshot,
-    ) -> Sequence[TargetPosition]:
-        ...
-
-
-@runtime_checkable
-class ExecutionAlgorithm(Protocol):
-    def create_orders(
-        self,
-        targets: Sequence[TargetPosition],
-        portfolio: PortfolioSnapshot,
-        marks: Mapping[str, float],
-    ) -> Sequence[Order]:
-        ...
+    @abstractmethod
+    def stop(self) -> None:
+        raise NotImplementedError

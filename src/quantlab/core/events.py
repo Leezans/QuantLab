@@ -1,8 +1,54 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
+from uuid import uuid4
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+@dataclass(frozen=True, slots=True)
+class DomainEvent:
+    event_id: str = field(default_factory=lambda: str(uuid4()))
+    event_type: str = "domain.event"
+    occurred_at: datetime = field(default_factory=utc_now)
+
+@dataclass(frozen=True, slots=True)
+class JobQueued(DomainEvent):
+    job_id: str = ""
+    event_type: str = "job.queued"
+
+
+@dataclass(frozen=True, slots=True)
+class JobStarted(DomainEvent):
+    job_id: str = ""
+    event_type: str = "job.started"
+
+
+@dataclass(frozen=True, slots=True)
+class JobProgressed(DomainEvent):
+    job_id: str = ""
+    progress: float = 0.0
+    message: str = ""
+    event_type: str = "job.progressed"
+
+
+@dataclass(frozen=True, slots=True)
+class JobSucceeded(DomainEvent):
+    job_id: str = ""
+    result: dict[str, Any] | None = None
+    event_type: str = "job.succeeded"
+
+
+@dataclass(frozen=True, slots=True)
+class JobFailed(DomainEvent):
+    job_id: str = ""
+    error: str = ""
+    event_type: str = "job.failed"
+
 
 
 @dataclass(frozen=True, slots=True)
