@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from quantlab.core.events import DomainEvent, FeatureCalculated, MarketDataArrived
+from quantlab.core.events import DomainEvent
+from quantlab.domain.data.events import MarketDataArrived
+from quantlab.domain.research.events import FeatureCalculated
 from quantlab.core.interfaces import EventBus, EventHandler
 
 

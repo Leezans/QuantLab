@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from quantlab.core.events import FeatureCalculated, MarketDataArrived
+from quantlab.domain.data.events import MarketDataArrived
+from quantlab.domain.research.events import FeatureCalculated
 from quantlab.domain.research.handlers.feature_handler import FeatureCalculationHandler
 from quantlab.domain.research.handlers.signal_handler import SignalGenerationHandler
 from quantlab.infra.bus import (
@@ -29,7 +30,6 @@ def build_bus() -> InMemoryEventBus:
     signal_handler = SignalGenerationHandler(bus, threshold=10000.0)
 
     bus.subscribe(MarketDataArrived, feature_handler)
-    bus.subscribe(FeatureCalculated, signal_handler)
 
     return bus
 
